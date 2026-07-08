@@ -1,0 +1,26 @@
+# fastpipe
+
+> A streaming ETL framework for Node.js that moves data between any source and sink with backpressure handling built in.
+
+fastpipe is primarily written in JavaScript, licensed under MIT.
+
+## Documentation
+
+- [FastPipe](https://fastpipe.dev/README.md): A streaming ETL framework for Node.js with built-in backpressure handling.
+- [API Reference](https://fastpipe.dev/docs/api.md): Complete reference for FastPipe's pipeline, source, and sink classes, including all configuration options and event hooks.
+- [Architecture](https://fastpipe.dev/docs/architecture.md): How FastPipe schedules chunks across worker threads and applies backpressure when sinks fall behind sources.
+
+## Examples
+
+- [CSV to Postgres](https://fastpipe.dev/examples/csv-to-postgres.md): A complete, runnable example that streams a 10GB CSV file into a Postgres table with automatic batching.
+
+## Development
+
+- [Contributing](https://fastpipe.dev/CONTRIBUTING.md): Development setup, test commands, and the pull request checklist for FastPipe contributors.
+
+## Optional
+
+- [Changelog](https://fastpipe.dev/CHANGELOG.md): Release history for FastPipe, newest first.
+- [License](https://fastpipe.dev/LICENSE)
+
+<!-- generated-by: llms-txt-skill -->
