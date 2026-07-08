@@ -16,13 +16,21 @@
 #   # Alpine (no sudo/bash by default), typically already root:
 #   curl -fsSL https://raw.githubusercontent.com/JonTelep/skills/main/setup-vps.sh | sh
 #
+# Auth model: subscription-based Claude Code. You log in once interactively
+# (`claude` -> OAuth) inside the tmux session; the token persists in ~/.claude,
+# so later `--dangerously-skip-permissions` runs are fully unattended. Do NOT
+# set ANTHROPIC_API_KEY — that switches billing to the pay-per-token API.
+#
+# On systemd hosts this also installs:
+#   * a service that re-creates the tmux session on every boot
+#   * a daily timer that runs `git pull` on the skills repo
+#
 # Optional env overrides:
 #   AGENT_USER=claude-agent        dedicated user name
 #   SKILLS_REPO=<git url>          this repo (defaults to origin)
 #   TMUX_SESSION=claude            tmux session name
 #   AGENT_REPO=<git ssh url>       if set, cloned into ~/work after key setup
 #   GIT_USER_NAME / GIT_USER_EMAIL git identity for the agent's commits
-#   ANTHROPIC_API_KEY=<key>        pass through for unattended (no-login) runs
 #   CREATE_SWAP=1                  create a 2G swapfile if none exists (small VPS)
 #
 # Idempotent: safe to re-run to update skills / repair the install.
@@ -38,7 +46,6 @@ TMUX_SESSION="${TMUX_SESSION:-claude}"
 AGENT_REPO="${AGENT_REPO:-}"
 GIT_USER_NAME="${GIT_USER_NAME:-${AGENT_USER}}"
 GIT_USER_EMAIL="${GIT_USER_EMAIL:-${AGENT_USER}@$(hostname 2>/dev/null || echo localhost)}"
-ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY:-}"
 CREATE_SWAP="${CREATE_SWAP:-0}"
 
 log()  { printf '\033[1;36m==>\033[0m %s\n' "$*"; }
@@ -141,7 +148,6 @@ TMP_SETUP="$(mktemp /tmp/claude-agent-setup.XXXXXX)"
   printf 'AGENT_REPO=%s\n'        "'$AGENT_REPO'"
   printf 'GIT_USER_NAME=%s\n'     "'$GIT_USER_NAME'"
   printf 'GIT_USER_EMAIL=%s\n'    "'$GIT_USER_EMAIL'"
-  printf 'ANTHROPIC_API_KEY=%s\n' "'$ANTHROPIC_API_KEY'"
 } > "$TMP_SETUP"
 
 cat >> "$TMP_SETUP" <<'BODY'
@@ -158,12 +164,6 @@ fi
 git config --global user.name  "$GIT_USER_NAME"  || true
 git config --global user.email "$GIT_USER_EMAIL" || true
 git config --global --get init.defaultBranch >/dev/null 2>&1 || git config --global init.defaultBranch main
-
-# --- Optional API key passthrough for unattended (no interactive login) ---
-if [ -n "$ANTHROPIC_API_KEY" ] && ! grep -qs 'ANTHROPIC_API_KEY' "$HOME/.bashrc" 2>/dev/null; then
-  printf 'export ANTHROPIC_API_KEY=%s\n' "$ANTHROPIC_API_KEY" >> "$HOME/.bashrc"
-  log "ANTHROPIC_API_KEY written to ~/.bashrc (unattended auth enabled)."
-fi
 
 # --- 1. Install Claude Code -----------------------------------------------
 if command -v claude >/dev/null 2>&1 || [ -x "$HOME/.local/bin/claude" ]; then
@@ -248,6 +248,66 @@ su - "$AGENT_USER" -c "bash '$TMP_SETUP'"
 rm -f "$TMP_SETUP"
 
 # --------------------------------------------------------------------------
+# Phase B2 — persistence (systemd): boot-time tmux + nightly skill refresh
+# --------------------------------------------------------------------------
+TMUX_BIN="$(command -v tmux || echo /usr/bin/tmux)"
+GIT_BIN="$(command -v git || echo /usr/bin/git)"
+if command -v systemctl >/dev/null 2>&1 && [ -d /run/systemd/system ]; then
+  log "Installing systemd units (boot-time tmux + daily skill update)…"
+
+  # 1) Re-create the tmux session on every boot (idempotent guard).
+  cat > /etc/systemd/system/claude-tmux.service <<UNIT
+[Unit]
+Description=Persistent tmux session for Claude Code (${AGENT_USER})
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+User=${AGENT_USER}
+ExecStart=/bin/sh -c '${TMUX_BIN} has-session -t ${TMUX_SESSION} 2>/dev/null || ${TMUX_BIN} new-session -d -s ${TMUX_SESSION} -c ${AGENT_HOME}/work'
+ExecStop=${TMUX_BIN} kill-session -t ${TMUX_SESSION}
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+
+  # 2) Nightly `git pull` on the skills repo.
+  cat > /etc/systemd/system/claude-skills-update.service <<UNIT
+[Unit]
+Description=Update Claude Code skills repo (${AGENT_USER})
+
+[Service]
+Type=oneshot
+User=${AGENT_USER}
+ExecStart=${GIT_BIN} -C ${AGENT_HOME}/work/skills pull --ff-only
+UNIT
+
+  cat > /etc/systemd/system/claude-skills-update.timer <<UNIT
+[Unit]
+Description=Daily Claude Code skills refresh
+
+[Timer]
+OnCalendar=daily
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+UNIT
+
+  systemctl daemon-reload
+  systemctl enable --now claude-tmux.service            >/dev/null 2>&1 || warn "Could not enable claude-tmux.service"
+  systemctl enable --now claude-skills-update.timer     >/dev/null 2>&1 || warn "Could not enable claude-skills-update.timer"
+  log "Persistence enabled: 'systemctl status claude-tmux' / 'systemctl list-timers claude-*'."
+  PERSIST_NOTE="systemd: tmux session auto-starts on boot; skills refresh daily."
+else
+  warn "No systemd detected (e.g. Alpine/OpenRC) — skipping boot service & timer."
+  warn "For nightly skill updates add to '${AGENT_USER}' crontab:  0 4 * * * git -C ~/work/skills pull --ff-only"
+  PERSIST_NOTE="no systemd: session is NOT auto-started on reboot (re-run tmux new -s ${TMUX_SESSION})."
+fi
+
+# --------------------------------------------------------------------------
 # Phase C — final banner
 # --------------------------------------------------------------------------
 PUBKEY="$(cat "${AGENT_HOME}/.ssh/id_ed25519.pub" 2>/dev/null || echo '(key not found — check the log above)')"
@@ -275,8 +335,10 @@ ${PUBKEY}
        cd ~/work/yourrepo && git pull
        claude                              # first run: log in once (OAuth)
 
-     For unattended long runs:  claude --dangerously-skip-permissions
-     (set ANTHROPIC_API_KEY at setup time to skip the interactive login.)
+     Auth is your Claude SUBSCRIPTION. Log in once interactively; the token
+     persists in ~/.claude, so later unattended runs just work:
+
+       claude --dangerously-skip-permissions
 
   ISOLATION: '${AGENT_USER}' has no sudo and its own home. Claude refuses
   --dangerously-skip-permissions as root, so it only runs here — blast
@@ -284,6 +346,8 @@ ${PUBKEY}
 
   Skills: symlinked from ~/work/skills into ~/.claude/skills.
   Update anytime with:  git -C ~/work/skills pull
+
+  Persistence: ${PERSIST_NOTE}
 
 ============================================================================
 BANNER
