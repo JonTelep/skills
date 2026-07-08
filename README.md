@@ -18,6 +18,72 @@ Note that skills are nested one level deep inside each `*-skill` project, under 
 `skills/` subdirectory. The symlink hides that nesting so the skill appears at the
 top level of `~/.claude/skills/`.
 
+## VPS setup (`setup-vps.sh`)
+
+`setup-vps.sh` (repo root) is a one-command bootstrap for running long-running
+Claude Code sessions on a VPS, inside `tmux`, isolated to a dedicated user. It
+provisions everything below in one shot and is safe to re-run.
+
+**Run on a fresh VPS (as root, or via `sudo`/`doas`):**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/JonTelep/skills/main/setup-vps.sh | sudo sh
+```
+
+On Alpine (no `sudo`/`bash` by default, usually already root):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/JonTelep/skills/main/setup-vps.sh | sh
+```
+
+**What it does:**
+
+1. Detects the package manager and installs `tmux`, `git`, `curl`, `bash`,
+   `openssh`, `ripgrep`. Works on Debian/Ubuntu (apt), AlmaLinux/RHEL/Rocky/
+   Fedora/CentOS (dnf/yum), Alpine (apk), Arch (pacman), openSUSE (zypper).
+2. Creates a dedicated **unprivileged** user `claude-agent` (no sudo) — the
+   isolation boundary for `claude --dangerously-skip-permissions`.
+3. Installs Claude Code (official installer) for that user.
+4. Clones this repo to `~/work/skills` and **symlinks every skill** into
+   `~/.claude/skills/`.
+5. Generates an `ed25519` SSH deploy key and prints the public key with
+   instructions to add it to the target repo's **Deploy keys**.
+6. Creates a detached `tmux` session named `claude`.
+7. On systemd hosts, installs a boot service (re-creates the tmux session on
+   reboot) and a daily timer (`git pull` on the skills repo).
+
+**Auth is your Claude subscription.** Log in once interactively (`claude` →
+OAuth) inside the tmux session; the token persists in `~/.claude`, so later
+unattended runs just work. Do **not** set `ANTHROPIC_API_KEY` — that switches
+billing to the pay-per-token API.
+
+**Optional env overrides** (prefix the piped command, e.g.
+`curl … | sudo AGENT_REPO=git@github.com:you/proj.git sh`):
+
+| Variable | Effect |
+| --- | --- |
+| `AGENT_USER` | Dedicated user name (default `claude-agent`) |
+| `SKILLS_REPO` | Skills repo URL to clone |
+| `TMUX_SESSION` | tmux session name (default `claude`) |
+| `AGENT_REPO` | If set, cloned into `~/work` after key setup |
+| `GIT_USER_NAME` / `GIT_USER_EMAIL` | git identity for the agent's commits |
+| `CREATE_SWAP=1` | Create a 2G swapfile if none exists (small VPS OOM guard) |
+
+**Daily use:**
+
+```bash
+ssh vps
+sudo su - claude-agent
+tmux attach -t claude          # or: tmux new -s claude
+cd ~/work/yourrepo && git pull
+claude                         # first run: log in once
+```
+
+> **Alpine note:** Claude Code ships a glibc binary; the script installs
+> `gcompat` as a shim, but on a stock musl image `claude` may still fail to
+> launch. A glibc-based image is the reliable fix. Everything else (user,
+> tmux, skills, key) works on Alpine regardless.
+
 ## Current symlinks
 
 Each entry below is `~/.claude/skills/<name>` → target in this repo:
