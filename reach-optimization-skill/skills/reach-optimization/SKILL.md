@@ -5,7 +5,9 @@ description: >
   find it, understand what it does, and recommend or cite it when users ask
   for something it does. Audits and fixes AI-crawler access, server-rendered
   content, llms.txt, structured data, answer-first copy, question-phrased
-  pages, and freshness signals. Use when the user wants AI/LLM reach, AIO,
+  pages, freshness signals, and search-index registration (Google Search
+  Console, Bing Webmaster Tools/IndexNow, Brave). Use when the user wants
+  AI/LLM reach, AIO,
   AEO, GEO, answer-engine optimization, "show up in ChatGPT/Claude answers",
   or AI-assisted-query traffic for a website or webapp.
 ---
@@ -120,6 +122,36 @@ Check each item and record PASS/FAIL with evidence. Priority order = fix order.
     a Wikipedia-linkable footprint if warranted. Models weight corroborated
     entities over self-descriptions.
 
+### E. Is the site registered with the indexes that feed AI answers? (submission gate)
+
+These are operator actions (they need account/DNS access) — audit whether
+they're done, walk the user through them, and list the rest under "items only
+the user can do". They matter because AI answer engines don't crawl the web
+themselves at scale: they sit on top of Google's and Bing's indexes, so being
+absent there is being absent from AI answers regardless of on-site quality.
+
+17. **Google Search Console** — property registered? Prefer a **Domain
+    property** (DNS TXT verification) over a URL-prefix property: it covers
+    every subdomain and protocol in one place. Then: submit `sitemap.xml`,
+    and for a new or newly-relaunched site use URL Inspection → **Request
+    indexing** on the top ~10 pages from the Reach Read query list — it
+    shortcuts weeks of organic discovery. Check Coverage/Pages report for
+    "Crawled — currently not indexed" on answer-bearing pages.
+18. **Bing Webmaster Tools** — registered? It can import a verified GSC
+    property in one click. Bing's index feeds **ChatGPT Search, Microsoft
+    Copilot, and DuckDuckGo**, so for AI-assistant reach it counts as much
+    as Google. Submit the sitemap there too. Also consider **IndexNow**
+    (supported by Bing, Yandex, Naver, Seznam): a static key file at the
+    web root plus a ping on deploy pushes URL changes to those indexes
+    instantly — cheap to wire into CI/deploy for sites whose content pages
+    change often (e.g. programmatic/long-tail pages).
+19. **Brave Search** — indexes independently with its own crawler and has
+    **no webmaster console or submission path**; coverage comes purely from
+    crawlability plus external links. Audit item: robots.txt doesn't block
+    Brave's crawler, and the site has at least some third-party links for
+    Brave's discovery to follow (ties into item 16). Brave's index also
+    backs some AI tools' search APIs, so it's not ignorable.
+
 ## Phase 2 — Fix
 
 Apply findings in the audit's order (retrieval → comprehension → matching →
@@ -147,4 +179,5 @@ docs/pages, never only into generated artifacts.
 
 End with: the Reach Read; a PASS/FAIL audit table with evidence; fixes
 applied (file-level); verification results; and the items only the user can
-do (deploy, DNS, third-party listings, robots policy decisions).
+do (deploy, DNS, search-console registration and sitemap submission,
+IndexNow key setup, third-party listings, robots policy decisions).
