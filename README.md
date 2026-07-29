@@ -18,6 +18,9 @@ Note that skills are nested one level deep inside each `*-skill` project, under 
 `skills/` subdirectory. The symlink hides that nesting so the skill appears at the
 top level of `~/.claude/skills/`.
 
+Linking is managed by the repo's **Makefile** — just run `make link` (see
+[Makefile — linking skills locally](#makefile--linking-skills-locally)).
+
 ## VPS setup (`setup-vps.sh`)
 
 `setup-vps.sh` (repo root) is a one-command bootstrap for running long-running
@@ -84,35 +87,30 @@ claude                         # first run: log in once
 > launch. A glibc-based image is the reliable fix. Everything else (user,
 > tmux, skills, key) works on Alpine regardless.
 
-## Current symlinks
+## Makefile — linking skills locally
 
-Each entry below is `~/.claude/skills/<name>` → target in this repo:
+The `Makefile` at the repo root manages all the symlinks. Running `make` with no
+arguments prints the help:
 
-| Skill name           | Target |
-| -------------------- | ------ |
-| `fable-prompts`      | `SKILLS/fable-prompts-skill/skills/fable-prompts` |
-| `intelligent-loop`   | `SKILLS/fable-prompts-skill/skills/intelligent-loop` |
-| `repo-conventions`   | `SKILLS/fable-prompts-skill/skills/repo-conventions` |
-| `llms-txt`           | `SKILLS/reach-optimization-skill/skills/llms-txt` |
-| `reach-optimization` | `SKILLS/reach-optimization-skill/skills/reach-optimization` |
+| Target        | What it does |
+| ------------- | ------------ |
+| `make help`   | Show all targets (also the default when just typing `make`) |
+| `make link`   | Symlink every skill (any directory containing a `SKILL.md`) into `~/.claude/skills/`. Idempotent — safe to re-run after adding a skill. |
+| `make unlink` | Remove **only** the symlinks that point into this repo. |
+| `make relink` | `unlink` + `link` — clears stale links left behind by renamed or deleted skills. |
+| `make status` | List every symlink in `~/.claude/skills/` with OK/BROKEN and whether this repo owns it. |
+| `make check`  | Exit non-zero if any skill is unlinked or any repo-owned link is broken/stale. |
 
-## How to create a new symlink
+Skills are discovered automatically by finding `SKILL.md` files, so adding a new
+skill is just: create `<project>-skill/skills/<name>/SKILL.md`, then `make link`.
 
-To expose a skill in this repo to Claude Code:
+**Safety:** `~/.claude/skills/` also holds symlinks owned by *other* repos (e.g.
+`absorb-x` and `checkin` from `second-brain`, `omarchy` from Omarchy). The
+Makefile inspects each link's target and never creates, replaces, or removes a
+link that doesn't resolve into this repo — those show up as `SKIP` in `make link`
+and `(other)` in `make status`.
 
-```bash
-ln -s /home/telep/Projects/SKILLS/<project>-skill/skills/<name> \
-      ~/.claude/skills/<name>
-```
-
-Example (this is exactly how `intelligent-loop` is wired up):
-
-```bash
-ln -s /home/telep/Projects/SKILLS/fable-prompts-skill/skills/intelligent-loop \
-      ~/.claude/skills/intelligent-loop
-```
-
-## How to verify
+## How to verify manually
 
 1. **Confirm the symlink exists and points into this repo:**
 
@@ -121,7 +119,7 @@ ln -s /home/telep/Projects/SKILLS/fable-prompts-skill/skills/intelligent-loop \
    ```
 
    Expected: an `l` at the start of the permissions and an arrow pointing to
-   `/home/telep/Projects/SKILLS/fable-prompts-skill/skills/intelligent-loop`.
+   `/home/telep/Projects/skills/fable-prompts-skill/skills/intelligent-loop`.
 
 2. **Confirm the target resolves to a real directory with skill content:**
 
@@ -141,16 +139,9 @@ ln -s /home/telep/Projects/SKILLS/fable-prompts-skill/skills/intelligent-loop \
 4. **Confirm Claude Code sees it:** the skill should be invocable as
    `/intelligent-loop` inside Claude Code.
 
-## Verify all SKILLS-backed symlinks at once
+## Verify all repo-backed symlinks at once
 
 ```bash
-for l in ~/.claude/skills/*; do
-  [ -L "$l" ] || continue
-  tgt=$(readlink "$l")
-  case "$tgt" in
-    */Projects/SKILLS/*)
-      if [ -e "$l" ]; then status="OK"; else status="BROKEN"; fi
-      printf '%-22s %-7s -> %s\n' "$(basename "$l")" "$status" "$tgt";;
-  esac
-done
+make status   # human-readable overview of every link
+make check    # CI-style: exits non-zero if anything is missing/broken/stale
 ```
