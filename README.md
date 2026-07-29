@@ -4,6 +4,10 @@ Source-of-truth repository for custom Claude Code skills. The actual skill
 content lives here (version-controlled), and Claude Code loads each skill via a
 **symlink** placed in `~/.claude/skills/`.
 
+> **Attribution:** `taste-skill/` is vendored from
+> [Leonxlnx/taste-skill](https://github.com/Leonxlnx/taste-skill) (MIT — see its
+> `LICENSE`). Everything else in this repo is original.
+
 ## How it works
 
 Claude Code discovers skills by scanning `~/.claude/skills/`. Rather than copying
