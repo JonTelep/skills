@@ -44,23 +44,29 @@ flush_outbox() {  # send every unsent gate/barrier message
   done
 }
 
-# Poll telegram for one reply while parked. Writes DIRECTION.md on anything
-# received. Single-consumer getUpdates: run only ONE parked forge.sh per bot.
+# Poll telegram for replies. $1 = long-poll timeout seconds (0 = non-blocking).
+# "stop" → notify + exit harness (after the current iteration, since this runs
+# between iterations). Anything else → DIRECTION.md, consumed next iteration.
+# Single-consumer getUpdates: run only ONE forge.sh per bot until forged (slice 3).
 poll_reply() {
-  [ -n "${TELEGRAM_TOKEN:-}" ] || { sleep 60; return 1; }
-  local offset resp text
+  local timeout="${1:-$PARK_POLL_SEC}"
+  [ -n "${TELEGRAM_TOKEN:-}" ] || { [ "$timeout" -gt 0 ] && sleep 60; return 1; }
+  local offset resp text next
   offset="$(cat "$OFFSET_FILE" 2>/dev/null || echo 0)"
-  resp="$(curl -sf "https://api.telegram.org/bot${TELEGRAM_TOKEN}/getUpdates?timeout=${PARK_POLL_SEC}&offset=${offset}")" || return 1
-  # highest update_id + 1 → next offset
-  local next
-  next="$(echo "$resp" | jq -r '[.result[].update_id] | max + 1 // empty' 2>/dev/null)"
+  resp="$(curl -sf "https://api.telegram.org/bot${TELEGRAM_TOKEN}/getUpdates?timeout=${timeout}&offset=${offset}")" || return 1
+  next="$(echo "$resp" | jq -r '([.result[].update_id] | max) as $m | if $m then $m + 1 else empty end' 2>/dev/null)"
   [ -n "$next" ] && echo "$next" > "$OFFSET_FILE"
   text="$(echo "$resp" | jq -r --arg chat "${TELEGRAM_CHAT_ID}" \
-    '[.result[] | select(.message.chat.id == ($chat|tonumber)) | .message.text] | last // empty' 2>/dev/null)"
+    '[.result[] | select(.message.chat.id == ($chat|tonumber)) | .message.text // empty] | join("\n")' 2>/dev/null)"
   [ -n "$text" ] || return 1
   log "reply received: $text"
-  printf '%s\n' "$text" > "$FORGE_DIR/DIRECTION.md"
-  tg_send "got it — resuming with: \"$text\""
+  if grep -qixE '\s*(stop|halt|pause)\s*' <<<"$text"; then
+    tg_send "stopping harness as requested. resume with: forge-start $PROJECT_DIR"
+    log "STOP requested via telegram — exiting"
+    exit 0
+  fi
+  printf '%s\n' "$text" >> "$FORGE_DIR/DIRECTION.md"
+  tg_send "got it — will act on: \"$text\""
   return 0
 }
 
@@ -95,7 +101,7 @@ log "=== forge harness up: $PROJECT (model=$MODEL, mode=$PERMISSION_MODE) ==="
 tg_send "forge harness started"
 
 while :; do
-  # direction waiting? make sure next iteration consumes it (skill does).
+  poll_reply 0 || true          # pick up stop/direction sent mid-run
   out="$(run_iteration)"
   status="$(cat "$FORGE_DIR/EXIT" 2>/dev/null || echo NONE)"
   log "iteration exit: $status"
@@ -110,7 +116,7 @@ while :; do
     BARRIER|BLOCKED)
       consec_fail=0
       log "parked ($status) — polling telegram for approval/direction"
-      while [ ! -f "$FORGE_DIR/DIRECTION.md" ]; do poll_reply || true; done ;;
+      while [ ! -f "$FORGE_DIR/DIRECTION.md" ]; do poll_reply "$PARK_POLL_SEC" || true; done ;;
     DONE)
       tg_send "🎉 DONE — prod-ready checklist green."
       log "DONE — harness exiting"; break ;;
