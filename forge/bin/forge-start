@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# forge-start — launch the harness for a project in its tmux session.
+# usage: forge-start <project-dir>
+set -euo pipefail
+
+PROJECT_DIR="$(cd "${1:?usage: forge-start <project-dir>}" && pwd)"
+PROJECT="$(basename "$PROJECT_DIR")"
+SESSION="forge-${PROJECT}"
+BIN="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+[ -f "$PROJECT_DIR/.forge/STATE.json" ] || {
+  echo "No .forge/STATE.json in $PROJECT_DIR — run '/forge init <plan>' there first." >&2
+  exit 1
+}
+
+if tmux has-session -t "$SESSION" 2>/dev/null; then
+  echo "Session $SESSION already exists — attach with: tmux attach -t $SESSION" >&2
+  exit 1
+fi
+
+tmux new-session -d -s "$SESSION" -n loop "${BIN}/forge.sh ${PROJECT_DIR}; echo; echo '[harness exited — press enter to close]'; read"
+tmux new-window -t "$SESSION" -n shell -c "$PROJECT_DIR"
+
+echo "started. watch with:  tmux attach -t $SESSION"

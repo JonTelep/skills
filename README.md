@@ -25,6 +25,21 @@ top level of `~/.claude/skills/`.
 Linking is managed by the repo's **Makefile** — just run `make link` (see
 [Makefile — linking skills locally](#makefile--linking-skills-locally)).
 
+## forge (`forge/`)
+
+Ledger-driven, gate-checked autonomous progression of a project toward
+production-ready — skills `/forge` + `/local-deploy` plus a bash harness
+(`forge/bin`) that runs iterations in tmux, survives usage-limit windows, and
+notifies/accepts approvals over Telegram. See `forge/README.md`.
+
+`make link` covers forge's skills; the harness scripts need one extra step
+(links `forge/bin/*` into `~/.local/bin`, checks `jq`/`gh`):
+
+```bash
+~/work/skills/forge/install.sh   # on the VPS, as the harness user
+forge-telegram-setup             # one-time telegram bot pairing
+```
+
 ## VPS setup (`setup-vps.sh`)
 
 `setup-vps.sh` (repo root) is a one-command bootstrap for running long-running

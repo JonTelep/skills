@@ -95,6 +95,11 @@ esac
 log "Installing core packages (tmux, git, curl, bash, openssh)…"
 pm_install tmux git curl ca-certificates bash "$SSH_PKG"
 
+# jq + gh: needed by the forge harness (forge/bin). gh is absent from some
+# distro repos (Debian) — warn rather than fail; install manually if needed.
+pm_install jq >/dev/null 2>&1 || warn "jq not available in repos — forge harness needs it."
+pm_install gh >/dev/null 2>&1 || warn "gh (GitHub CLI) not in repos — install manually for forge PRs: https://cli.github.com"
+
 # ripgrep is a nice-to-have; some minimal repos (older RHEL) lack it — don't fail.
 pm_install ripgrep >/dev/null 2>&1 || warn "ripgrep not available in repos — skipping (optional)."
 

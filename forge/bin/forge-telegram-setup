@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# forge-telegram-setup — one-time: capture chat_id and write ~/.forge/config
+# Prereq: create a bot with @BotFather in Telegram, get the token.
+set -euo pipefail
+
+CONFIG="${HOME}/.forge/config"
+mkdir -p "${HOME}/.forge"
+
+read -rp "Bot token (from @BotFather): " TOKEN
+echo "Now send ANY message to your bot in Telegram, then press Enter..."
+read -r
+
+RESP="$(curl -sf "https://api.telegram.org/bot${TOKEN}/getUpdates")"
+CHAT_ID="$(echo "$RESP" | jq -r '[.result[].message.chat.id] | last // empty')"
+
+if [ -z "$CHAT_ID" ]; then
+  echo "No message found. Send the bot a message and re-run." >&2
+  exit 1
+fi
+
+cat > "$CONFIG" <<EOF
+TELEGRAM_TOKEN="${TOKEN}"
+TELEGRAM_CHAT_ID="${CHAT_ID}"
+EOF
+chmod 600 "$CONFIG"
+
+curl -sf -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" \
+  --data-urlencode "chat_id=${CHAT_ID}" \
+  --data-urlencode "text=forge connected ✅" >/dev/null
+
+echo "OK — chat_id ${CHAT_ID} written to ${CONFIG}; check Telegram for the test message."
