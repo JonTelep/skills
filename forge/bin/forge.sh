@@ -23,7 +23,7 @@ MAX_CONSEC_FAIL=3
 [ -f "$CONFIG" ] && . "$CONFIG"   # TELEGRAM_TOKEN, TELEGRAM_CHAT_ID
 mkdir -p "$FORGE_DIR"
 
-log() { echo "[$(date '+%m-%d %H:%M:%S')] $*" | tee -a "$LOG"; }
+log() { echo "[$(date '+%m-%d %H:%M:%S')] $*" | tee -a "$LOG" >&2; }  # stderr: not swallowed by $(run_iteration)
 
 tg_send() {  # tg_send <text>
   [ -n "${TELEGRAM_TOKEN:-}" ] || { log "telegram not configured; msg: $1"; return 0; }
