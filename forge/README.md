@@ -46,7 +46,18 @@ port registry; later: telegram config, per-project inboxes).
 
 ## Human control surface
 
-- approve / redirect: write `.forge/DIRECTION.md` in the target repo
-  (`approve G1`, or free-text direction → becomes ledger tasks)
-- watch: tmux session per project (slice 2), `git log`, PRs per milestone
-- test on phone: gate messages include tailnet URLs from /local-deploy
+Telegram (a background listener in `forge.sh` answers any time, even mid-task):
+
+| send            | effect                                                          |
+|-----------------|-----------------------------------------------------------------|
+| `status`        | harness state, tasks done/total, gates, recent commits, ledger  |
+| `run` / `go`    | start iterating from idle, or retry now while parked/sleeping   |
+| `stop` / `pause`| finish the current task, then idle (harness stays alive)        |
+| `quit`          | exit the harness                                                |
+| anything else   | appended to `.forge/DIRECTION.md` (`approve G1`, new direction) |
+
+The harness also sends one line per completed task, milestone PR links,
+gate messages (with tailnet URLs from /local-deploy), usage-limit sleeps.
+
+- same thing without telegram: write `.forge/DIRECTION.md` in the repo
+- watch: `tmux attach -t forge-<project>`, `.forge/harness.log`, `git log`
