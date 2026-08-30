@@ -25,6 +25,12 @@ milestone before advancing. Opus orchestrates; Sonnet subagents implement.
 table, the DAG after fake-edge cuts, verify commands, and milestone/gate
 structure, then `approve` / `approve G0` (telegram or `.forge/DIRECTION.md`).
 
+Default is **one task per iterate**. If two (not more) `pending` tasks both
+have `depends_on` done and non-overlapping `affected` packages/files, the
+orchestrator MAY dispatch both in that iterate (review + verify each,
+commit separately, one EXIT). Cap 2. No extra agent types. Missing
+`affected` (old ledgers) stays one-wide.
+
 ## Never-list (actual safety)
 
 The harness default is `FORGE_PERMISSION_MODE=bypassPermissions` so overnight
