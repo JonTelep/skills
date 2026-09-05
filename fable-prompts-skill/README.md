@@ -14,11 +14,30 @@ The format originated in the `easy-data-quality` repo's `docs/prompts/FABLE-PROM
 
 Together they close the loop: `repo-conventions` grounds it, `fable-prompts` writes the plan (with a human checkpoint), `intelligent-loop` executes it.
 
+## Simplicity: the ponytail rule
+
+Both skills carry the philosophy of [DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail) — *he says nothing, he writes one line, it works.* Before any code, stop at the first rung that holds:
+
+```
+1. Does this need to exist?   → no: skip it (YAGNI)
+2. Already in this codebase?  → reuse it, don't rewrite
+3. Stdlib does it?            → use it
+4. Native platform feature?   → use it
+5. Installed dependency?      → use it
+6. One line?                  → one line
+7. Only then: the minimum that works
+```
+
+Lazy, not negligent: validation at trust boundaries, data-loss handling, security, accessibility, and anything the prompt explicitly requires are never on the chopping block.
+
+The ruleset is vendored once, in `skills/fable-prompts/references/ponytail.md` (MIT, attribution inside), and used at every stage: `fable-prompts` climbs the ladder while making each design decision and forbids the predictable over-build by name; its review rubric has a ponytail pass; `intelligent-loop` pastes the compact block into every implementer dispatch, runs the `delete`/`stdlib`/`native`/`yagni`/`shrink` review on every diff before commit, and harvests the `ponytail:` debt ledger at the end.
+
 `skills/fable-prompts/references/` holds the deep knowledge, kept out of the entrypoint so it stays lean:
 
 - `principles.md` — the design rules, each stated with the implementer failure mode it compensates for, plus good/bad contrasting examples.
 - `template.md` — series-header and per-prompt anatomy, with an annotated real example.
-- `review-rubric.md` — the adversarial checklist (anchor verification, decision completeness, blast radius, unfakeable guardrails, test honesty, sizing).
+- `review-rubric.md` — the adversarial checklist (anchor verification, decision completeness, blast radius, unfakeable guardrails, test honesty, sizing, over-engineering).
+- `ponytail.md` — the simplicity ruleset: the ladder, the not-lazy list, the review tags, the `ponytail:` marker convention, and the compact block that `intelligent-loop` pastes into implementer prompts.
 
 ## Install
 

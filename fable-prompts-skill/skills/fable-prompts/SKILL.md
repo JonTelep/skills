@@ -9,6 +9,8 @@ You are writing a document whose reader is an **unsupervised implementing agent 
 
 Read `references/principles.md` before writing anything. Render prompts against `references/template.md`. Review with `references/review-rubric.md`. Do not write prompts from this file alone — the taste is in the references.
 
+**Simplicity is a design input, not a review afterthought.** `references/ponytail.md` (adapted from [ponytail](https://github.com/DietrichGebert/ponytail)) is the ruleset: before any design decision, climb the ladder — does it need to exist, is it already in the codebase, does stdlib or the platform or an installed dependency do it, can it be one line, only then the minimum that works. The author climbs the ladder so the implementer never has to; a prompt that leaves the rung open is a prompt that gets a 120-line cache class.
+
 ## The pipeline
 
 Four phases, strictly in order. Do not start writing prompts until Recon is complete.
@@ -20,6 +22,8 @@ Turn the user's goal into:
 1. **A thesis: one falsifiable outcome sentence.** Not an aspiration ("make sources pluggable") but a test ("adding a new source must touch zero code in `internal/engine`, `internal/profile`, or `internal/functions` — enforced by a cross-source equivalence test that stays green forever"). If you cannot state the goal as something mechanically checkable, the series is not ready — sharpen further.
 2. **A scope guard: what this series deliberately does NOT do**, stated up front ("no new sources in this phase; Parquet/S3 are Phase 3"). Unsupervised agents expand into any silence; the scope guard fills it.
 
+3. **The ladder, applied to the series itself.** Does this need to be built at all? Does the codebase, stdlib, or platform already cover part of the thesis? Ship the smallest series that makes the thesis true and say in one line what you cut. "Do you actually need X, or does Y cover it?" is a legitimate answer to a goal.
+
 If the goal is genuinely ambiguous, ask **one** clarifying question — never a multi-question dump. If you can confidently infer, declare your reading and proceed.
 
 ### Phase 2 — Recon
@@ -29,6 +33,7 @@ If the goal is genuinely ambiguous, ask **one** clarifying question — never a 
 1. If no fresh conventions document exists for the repo, run the `repo-conventions` skill first. Its output supplies the guardrail commands, invariants, boundaries, and gotchas that every prompt must restate.
 2. Identify the subsystems the thesis touches. Fan out read-only subagents (Explore-type) over each, tasked with returning **anchored facts**: exact file:line locations of the code each prompt will modify, the names and signatures of existing helpers, counts of things that must be migrated ("39 existing transforms in defaults.go"), and existing tests that lock current behavior.
 3. Build a facts sheet. Discard any fact without an anchor. Where the goal assumes something the code contradicts, resolve it now — recon is where you find out the helper you planned to extend doesn't exist.
+4. Build the **reuse inventory**: for each capability the thesis needs, the existing helper, stdlib call, platform feature, or already-installed dependency that provides it (rungs 2–5 of the ladder), anchored. This is what makes the prompts short. An implementer that isn't told `internal/util.ParseID` exists will write a second one.
 
 ### Phase 3 — Decompose & Write
 
@@ -41,11 +46,15 @@ If the goal is genuinely ambiguous, ask **one** clarifying question — never a 
 
 **Write** each prompt against `references/template.md`, using only recon facts. The author makes the architectural decisions — struct vs interface, naming, error semantics, what's deferred — and the prompt records them. Never delegate a design decision to the implementer; that is where unsupervised sessions go sideways.
 
+Every decision is the **laziest one that works**: name the rung it stopped on and the thing to reuse ("use `Object.groupBy`, not a reduce"; "extend `internal/util.ParseID`, do not add a validator"). Forbid the over-build by name the same way you forbid scope creep ("no interface — one implementation exists"; "no new dependency — `net/http` covers it"). Where a deliberate simplification cuts a real corner with a known ceiling, tell the implementer to mark it with a `ponytail:` comment naming the ceiling and upgrade path.
+
 **Write the series header**: title with phase context, the thesis paragraph, the scope guard, how-to-use instructions (paste one section per fresh session; prompts assume prior ones landed; a missing referenced artifact means a prerequisite didn't land — stop and report), the sequencing DAG, human checkpoints, and the review loop (after each prompt lands, review the diff for correctness, test honesty, and scope creep; loop fixes back to the same agent until acceptance criteria pass).
 
 ### Phase 4 — Adversarial Review
 
 For each prompt, run a critic pass against `references/review-rubric.md` — as a subagent per prompt when the series is large, so each critic reads one prompt cold, the way the implementer will. The critic's stance is hostile: *how would a lazy, over-eager, or confused agent fail this prompt while claiming success?*
+
+The critic also reads each prompt as ponytail would (`references/ponytail.md` review tags: `delete`, `stdlib`, `native`, `yagni`, `shrink`): does the prompt itself mandate an abstraction, dependency, file, or layer the ladder would skip? A prompt that over-specifies over-builds by construction.
 
 Fix every finding and re-check the fixed prompt. Do not ship a prompt with an unresolved rubric failure. This phase is the one that separates "a decent task list" from prompts that survive contact with an unsupervised implementer — do not skip or soften it.
 

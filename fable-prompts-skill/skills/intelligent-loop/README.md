@@ -112,6 +112,27 @@ that worked had these properties, worth preserving in any adaptation:
 6. **Report to the user between prompts** — one short paragraph: what
    landed, what the review confirmed, what's running next.
 
+## The simplicity rule
+
+The loop borrows its taste from
+[ponytail](https://github.com/DietrichGebert/ponytail): *he says nothing, he
+writes one line, it works.* The ruleset lives in
+`../fable-prompts/references/ponytail.md` and enters the loop at three points:
+
+- **Dispatch** — the compact block (the seven-rung ladder: YAGNI → reuse →
+  stdlib → native → installed dependency → one line → minimum) is pasted into
+  every implementer prompt. The prompt's own decisions outrank the ladder;
+  the ladder governs everything the prompt left open.
+- **Review** — a ponytail pass over every diff: `delete` / `stdlib` /
+  `native` / `yagni` / `shrink` findings loop back to the agent exactly like
+  correctness findings. A diff that could be shorter is not done.
+- **Finish** — the `ponytail:` markers left on the branch are harvested into
+  a debt ledger, so a deliberate shortcut can't rot into "later means never".
+
+Why here and not only in the prompts: the implementer is the cheaper tier,
+and over-building is its default failure. Sonnet asked for a date picker
+installs a library; the orchestrator's job is to notice the browser had one.
+
 ## Failure-handling rules
 
 - **Agent reports a blocker** (missing prerequisite): stop the loop and

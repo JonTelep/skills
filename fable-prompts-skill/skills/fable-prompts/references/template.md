@@ -71,6 +71,13 @@ layer"). Omit otherwise.>
   design note, not a feature wishlist.>
 - <Named scope-creep prohibitions where the tempting expansion is
   predictable.>
+- <**Reuse, not rebuild:** the existing helper / stdlib call / platform
+  feature / installed dependency that covers each piece of this prompt,
+  from the recon reuse inventory, and the over-build forbidden by name
+  ("no new dependency — `net/http` covers it"; "no interface — one
+  implementation exists"). Deliberate simplifications with a known
+  ceiling carry a `ponytail:` comment naming the ceiling and upgrade
+  path.>
 
 **OpenAPI / <cross-cutting ritual>:** <what spec/generated-artifact changes
 this prompt requires, and the sync command. "None" is a valid and useful
@@ -89,6 +96,9 @@ outputs, preserved properties, hard compatibility lines.>
   mentions them.>
 - <Unfakeable-verification clauses where the known dodge exists: "editing X
   without running it does not count as done", "no baseline, no perf claim".>
+- Shortest working diff: no new dependencies, no abstractions or files
+  beyond those named above, no scaffolding "for later". If a smaller
+  change satisfies every claim in Testing, that is the change.
 - If the codebase contradicts anything stated above, stop and report the
   discrepancy instead of improvising a workaround.
 - Do not commit or push unless explicitly asked.

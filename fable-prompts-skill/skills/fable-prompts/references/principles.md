@@ -86,6 +86,21 @@ Include the repo's known testing gotchas inline (from the conventions doc) so th
 
 **Rule:** the header tells the human what to review after each prompt lands — correctness, **test honesty** (do the tests actually exercise the claim?), and scope creep — and to loop fixes back to the same agent until acceptance criteria pass before moving on. The series assumes review between sessions; prompts can therefore afford to trust that prerequisites landed *if their tripwires don't fire*.
 
-## 11. Voice
+## 11. The laziest design that works — the author climbs the ladder
+
+**Failure mode:** over-building. Asked for a date picker, the implementer installs a library, writes a wrapper component, adds a stylesheet, and opens a timezone discussion. Asked for a cache, it writes a 120-line cache class. Asked to group records, it adds lodash. Each is defensible in isolation; together they are the bloat that makes review impossible and the codebase heavier for every prompt after.
+
+**Rule:** every design decision in a prompt stops at the first rung of the [ponytail](https://github.com/DietrichGebert/ponytail) ladder that holds (full ruleset in `ponytail.md`): does it need to exist at all → already in this codebase → stdlib → native platform feature → already-installed dependency → one line → only then the minimum that works. The prompt records the rung and the thing to reuse, so the implementer inherits the decision rather than re-deriving it wrongly.
+
+- ❌ "Add a date picker to the form."
+- ✅ "`<input type=\"date\">` — the browser has one. No picker library, no wrapper component."
+- ❌ "Create a Repository abstraction over the store."
+- ✅ "Call `store.Get` directly from the handler. No repository interface — one implementation exists; the abstraction is scope creep until a second store lands."
+
+Forbid the tempting over-build by name, exactly as you forbid scope creep (Principle 5): "no new dependency — `net/http` covers it"; "no config for this value — it never changes". Where a deliberate simplification has a known ceiling (a global lock, an O(n²) scan), the prompt tells the implementer to mark it `# ponytail: <ceiling>, <upgrade path>` so the deferral is tracked, not forgotten.
+
+**Not lazy about:** understanding the problem, input validation at trust boundaries, error handling that prevents data loss, security, accessibility, anything the thesis explicitly requires. Lazy means less code, not the flimsier algorithm — between two same-size options take the edge-case-correct one. And the Testing section (Principle 7) still names the claims to prove; the ladder shortens the code, never the proof.
+
+## 12. Voice
 
 Write in dense, declarative, second-person-imperative prose. Bold the load-bearing decisions. Parentheticals carry the reasoning ("no boxing in the hot path"). No hedging, no "consider", no "you may want to" — the implementer executes; optionality is the author's to resolve. Use the repo's own vocabulary (from the conventions doc), never synonyms.

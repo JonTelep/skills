@@ -39,11 +39,20 @@ Read the prompt cold, the way the implementer will — without the author's cont
 - [ ] One coherent architectural move plus its proof. If the prompt contains two independent moves, split it. If it's a trivial diff wrapped in ceremony, merge it into a neighbor.
 - [ ] The context budget is plausible: an agent can hold the affected code, make the change, and write honest tests in one session. Cutover prompts that can't be split are flagged as human checkpoints instead.
 
+### G. Over-engineering — the ponytail pass
+Read the prompt's Details as a lazy senior dev (`ponytail.md`). One line per finding, tagged `delete` / `stdlib` / `native` / `yagni` / `shrink`.
+- [ ] Nothing the prompt mandates fails the ladder: no abstraction with one implementation, no new dependency where stdlib/platform/an installed dependency covers it, no layer with one caller, no config for a value that never changes, no file that could be a function.
+- [ ] Each capability names the thing to **reuse** (from the recon reuse inventory). A capability with no reuse target and no "nothing exists — write the minimum" note is a rung the implementer will climb wrongly.
+- [ ] The predictable over-build is forbidden by name, the way scope creep is.
+- [ ] Simplifications with a known ceiling instruct a `ponytail:` marker. Simplifications that would cut validation at a trust boundary, data-loss handling, security, or accessibility are **not** present — those are never on the ladder.
+- [ ] The Testing section survives: the ladder shortened the code, not the proof.
+
 ## Series-level checks (once)
 
 - [ ] The thesis is falsifiable and ONE prompt is assigned to write the test that enforces it permanently, named visibly.
 - [ ] The sequencing line matches reality: walk each prompt's references and confirm the declared DAG admits no ordering that breaks an anchor.
 - [ ] The scope guard exists and the deferred work is named with its future home.
+- [ ] The series is the smallest that makes the thesis true: no prompt exists to build something rungs 1–5 of the ladder already cover.
 - [ ] Human checkpoints sit on the largest-blast-radius prompts, with the mitigation stated (plan mode + review).
 - [ ] How-to-use and review-loop boilerplate is present and consistent with the repo's actual commands.
 - [ ] Vocabulary matches the repo's own (per the conventions doc) — no invented synonyms.

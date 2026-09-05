@@ -6,7 +6,10 @@ content lives here (version-controlled), and Claude Code loads each skill via a
 
 > **Attribution:** `taste-skill/` is vendored from
 > [Leonxlnx/taste-skill](https://github.com/Leonxlnx/taste-skill) (MIT — see its
-> `LICENSE`). Everything else in this repo is original.
+> `LICENSE`). The simplicity ruleset in
+> `fable-prompts-skill/skills/fable-prompts/references/ponytail.md` is adapted
+> from [DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail)
+> (MIT — notice inside the file). Everything else in this repo is original.
 
 ## How it works
 

@@ -15,6 +15,12 @@ You are the ORCHESTRATOR. You never implement prompts yourself; you
 dispatch, review, verify, decide, and commit. See README.md in this
 directory for the full methodology and rationale.
 
+The simplicity ruleset is `../fable-prompts/references/ponytail.md`
+(adapted from https://github.com/DietrichGebert/ponytail). Read it once at
+the start: its compact block goes into every dispatch, and its review tags
+are a mandatory review dimension. The diff's best outcome is getting
+shorter.
+
 ## Input
 
 `$ARGUMENTS` is the path to a prompts file. Read it fully. Extract:
@@ -38,6 +44,11 @@ starting — the loop's safety depends on them.
       - a context bridge naming what previous prompts landed (packages,
         helpers, types now available), since the agent's context is fresh
       - the FULL verbatim prompt text — never a summary
+      - the **compact block** from `ponytail.md`, verbatim — the ladder
+        (YAGNI → reuse → stdlib → native → installed dep → one line →
+        minimum) and the not-lazy list. The prompt's own decisions,
+        Testing, Invariants, and Guardrails outrank the ladder; the block
+        governs everything the prompt left open.
       - the standing rule: "do NOT commit — leave changes in the working
         tree; the orchestrator reviews and commits"
       - a required final-report format: files changed, exact commands run
@@ -53,6 +64,14 @@ starting — the loop's safety depends on them.
         may not see from inside its scope.
       - Check every invariant listed in the prompt explicitly. Review is
         checking claims against a list, not vibes.
+      - **Ponytail pass.** Read the diff as a lazy senior dev. One line per
+        finding, `<file>:L<n>: <tag> <what to cut>. <replacement>.` with
+        tags `delete` / `stdlib` / `native` / `yagni` / `shrink`. New
+        dependency, new abstraction with one implementation, new file that
+        could be a function, hand-rolled stdlib, config nobody sets — each
+        is a defect and goes back to the agent as a delete-list, same as a
+        correctness finding. A single smoke test or assert self-check is
+        the minimum, never flag it. `Lean already. Ship.` is the pass.
    c. **Verify independently.** Re-run every guardrail command in your
       own shell. Never commit on the agent's word that tests pass.
    d. **On defects:** SendMessage the SAME agent (its context is intact)
@@ -69,7 +88,9 @@ starting — the loop's safety depends on them.
    loop and report — a prior prompt didn't land as believed. Never
    improvise the prerequisite.
 4. **Finish** with a summary table (commit ↔ prompt), overall
-   verification status, and offer to open a PR.
+   verification status, the **`ponytail:` debt ledger** (grep the branch
+   for `ponytail:` markers per `ponytail.md`; one row each with ceiling
+   and upgrade trigger, `no-trigger` flagged), and offer to open a PR.
 
 ## Parallelism
 
@@ -87,6 +108,13 @@ independent, you may dispatch them concurrently — but:
   failing part.
 - **Scope creep found in the diff:** strip it before committing or have
   the agent revert it. Never let "bonus" changes ride along unreviewed.
+- **Over-build found in the diff** (a wrapper, a helper the codebase
+  already had, a dependency the stdlib covers): loop the delete-list back
+  to the agent. If the prompt itself mandated the over-build, the prompt
+  is the defect — stop and report to the user rather than shipping it.
+- **Agent argues for the bigger version:** the prompt's author already
+  climbed the ladder. Unless the agent shows the smaller version fails a
+  stated Testing claim or Invariant, the smaller version ships.
 - **High-risk-flagged prompts** get the deepest diff review (trace every
   caller of anything whose type or behavior changed).
 
@@ -96,6 +124,8 @@ independent, you may dispatch them concurrently — but:
 - Independent verification before every commit.
 - Dispatch the full verbatim prompt text, never a paraphrase.
 - Unrelated untracked files never ride along in commits.
+- Shortest working diff wins. No commit carries a new dependency, layer,
+  or file the prompt did not name.
 - This skill does NOT author the prompts file. If the user has no plan
   yet, tell them to plan first — writing a good prompt series is a
   separate, judgment-heavy activity with a human checkpoint before
