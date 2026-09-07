@@ -9,7 +9,9 @@ content lives here (version-controlled), and Claude Code loads each skill via a
 > `LICENSE`). The simplicity ruleset in
 > `fable-prompts-skill/skills/fable-prompts/references/ponytail.md` is adapted
 > from [DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail)
-> (MIT — notice inside the file). Everything else in this repo is original.
+> (MIT — notice inside the file). `browse-x-skill/` is adapted from
+> [pc-style/x-md](https://github.com/pc-style/x-md) `skills/browse-x` (MIT — see
+> `browse-x-skill/LICENSE`). Everything else in this repo is original.
 
 ## How it works
 
@@ -27,6 +29,16 @@ top level of `~/.claude/skills/`.
 
 Linking is managed by the repo's **Makefile** — just run `make link` (see
 [Makefile — linking skills locally](#makefile--linking-skills-locally)).
+
+## browse-x (`browse-x-skill/`)
+
+Read/search **public** X posts, threads, profiles, followers, and following via
+[x.md](https://x.pcstyle.dev) as Markdown or JSON. No X API key. The skill is
+curl-first so Codex, Claude Code, and Cursor work on a PC without Bun.
+
+`make link` covers it (symlink `browse-x` → `browse-x-skill/skills/browse-x`).
+On a PC, also point Cursor/Codex at that same folder — see
+`browse-x-skill/README.md`.
 
 ## forge (`forge/`)
 
