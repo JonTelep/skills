@@ -1,106 +1,90 @@
-# Principles — why each rule exists
+# Planning principles
 
-Every rule here compensates for a specific, observed failure mode of unsupervised implementing agents. The WHY is stated because you (the prompt author) will face situations the rules don't cover — reason from the failure mode, not the letter.
+## Outcomes and evidence
 
----
+State the behavior that matters to the user before prescribing code. Every material
+claim needs evidence capable of disproving it. A passing test establishes only what
+it exercises; passing all task checks does not automatically establish the series goal.
 
-## 1. The thesis must be falsifiable, and a test must enforce it
+For example, cross-source equivalence shows that tested sources behave alike. It does
+not establish that adding a source requires zero engine edits. That second claim needs
+an extension exercise or structural check as well. Record both in the acceptance map.
+Use a benchmark baseline for performance claims and a real runtime check for runtime
+claims. Report unavailable checks explicitly. User evaluation is appropriate for
+subjective outcomes; do not disguise it as an automated guarantee.
 
-**Failure mode:** a series built on an aspiration ("make the code cleaner", "support more sources") produces prompts that all individually succeed while the goal quietly fails. Nobody can point to the moment it was lost.
+## Facts, assumptions, and future contracts
 
-**Rule:** state the series' outcome as a literal test, and assign one prompt to write the test that enforces it permanently.
+Observed references carry a path, symbol, and supporting location at the recon
+snapshot. Counts and signatures must have been inspected. Assumptions carry a
+validation method. Future artifacts carry a producing task and expected contract,
+never fabricated source anchors. Dependency IDs are useful metadata; every dispatched
+task must also contain the prerequisite contracts it needs to understand its work.
 
-- ❌ "Every component should operate on the internal typed record stream."
-- ✅ "Adding a new source in Phase 3 must touch **zero** code in `internal/engine`, `internal/profile`, or `internal/functions`. Prompt 3 enforces this with a cross-source equivalence test (`TestTransform_SourceAgnostic`) that must stay green forever."
+Recheck relevant snapshot facts before implementation. A stale line number is a
+navigation problem; an absent contract is a dependency problem. Neither justifies
+silently recreating the planned helper. Investigate before deciding how to recover.
 
-## 2. Every code reference is a verified anchor — and a tripwire
+## Resolve consequential uncertainty early
 
-**Failure mode:** a prompt says "extend the ValidateID helper" but the helper doesn't exist (the author guessed, or a prerequisite session didn't land). The agent improvises one, diverging from the intended design, and reports success.
+Use the smallest investigation that can distinguish the plausible designs. Give an
+experiment a question and stop condition. Document its result and whether the design
+changed. Do not let an exploratory prototype become an unreviewed implementation.
+If a question remains open, make investigation a task and defer detailed dependent
+specifications until its result is known.
 
-**Rule:** every file, function, line range, and count in a prompt was verified during recon (`internal/profile/engine.go:197-221`, "all 39 existing transforms"). Then weaponize the anchors: instruct that a missing referenced artifact means a prerequisite session did not land — **stop and report rather than improvise**. Anchors serve double duty: they save the agent discovery time, and they detect broken prerequisites.
+## Decision authority
 
-Corollary: prompts never reference each other by number ("as done in Prompt 2") — a fresh session can't see Prompt 2. Reference only artifacts that will exist **in the codebase** by the time the prompt runs.
+Fixed decisions cover public behavior, compatibility, data semantics, and significant
+architectural boundaries. Include rationale and evidence so implementers can recognize
+when assumptions fail. Flexible decisions cover local code organization, helper names,
+and equivalent algorithms within required complexity and correctness bounds.
 
-## 3. The author decides; the implementer executes
+Implementers report proposed changes to fixed decisions with evidence. Orchestrators
+may amend the plan within the user's agreed outcome, constraints, and authorization;
+user input is needed for unresolved consequential choices outside those bounds.
+Record amendments and refresh affected future tasks before dispatch. User instructions
+and applicable repository instructions take precedence over this planning format.
 
-**Failure mode:** left to choose, an implementing agent picks the design that is easiest to generate, not the one that fits — an interface where a tagged struct was needed, a speculative metadata layer, a second parallel code path "for safety".
+## Scope without brittle file freezes
 
-**Rule:** make the architectural calls in the prompt, with the reasoning inline so the agent can't rationalize around them.
+List expected edit areas and explicit protected boundaries. Required caller updates,
+tests, and generated files should be anticipated. Unexpected local edits can be
+justified within the contract; crossing a protected boundary needs review first.
+Name predictable scope expansion when it matters. Do not prohibit all unlisted files
+or treat every new abstraction as a defect regardless of its purpose.
 
-- ❌ "Create a Value type to represent typed cells."
-- ✅ "`record.Value` is a small **tagged struct, not an interface** — no boxing in the hot path: `{Kind Kind; Raw string; I int64; F float64; B bool; T time.Time}`."
+## Simplicity and maintenance
 
-When a decision genuinely depends on what the code can express, don't guess — mandate a STEP 0 read-and-report ("read the AST types first; if implied-rule insertion isn't cleanly expressible, implement ONLY conflict detection and explicitly defer — do not build a speculative metadata layer").
+Use `ponytail.md`: need, reuse, standard library, platform, installed dependency, then
+the minimum maintainable implementation. Evaluate concepts, coupling, duplication,
+and operational burden rather than line count. A shorter diff can preserve the wrong
+abstraction or hide a root cause. Preserve correctness, accessibility, security, and
+required performance. Record real deferred limitations with a ceiling and upgrade
+trigger, not markers for ordinary design choices.
 
-## 4. Invariants are the negative space — state what must NOT change
+## Verification proportional to the claim
 
-**Failure mode:** blast radius creep. The agent "improves" adjacent code, breaks an untested consumer, or introduces buffering into a streaming path because nothing said not to.
+Each task states claims to prove, boundary cases, and relevant regression evidence.
+For a bug fix, demonstrate that the regression check detects the old behavior when
+practical. Inspect changed expectations and fixtures; do not weaken them merely to
+obtain a passing run. Use targeted checks during fixes, required task gates before
+acceptance, and integrated checks at dependency joins and completion. Full-suite runs
+per task are appropriate when repository rules or impact require them, not universal.
 
-**Rule:** every prompt declares affected packages (which implicitly excludes everything else) AND an explicit Invariants section: untouched packages, byte-identical outputs, preserved properties ("single-pass streaming preserved — the source abstraction must not introduce buffering"), and compatibility lines ("rulesets without `on_failure` behave byte-identically — this is a hard compatibility line").
+Capture relevant baseline failures before editing. Distinguish existing failures,
+regressions, and unavailable environments. A baseline failure is not an automatic
+waiver of a required acceptance gate. Do not claim performance improvements without
+a comparable baseline or runtime success from static inspection alone.
 
-## 5. Name scope creep before it happens
+## Task size, review, and voice
 
-**Failure mode:** the agent sees an "obvious" adjacent improvement and takes it, entangling the diff and making review impossible.
+One task is a coherent outcome and its proof. Split when uncertainty, dependencies,
+or review scope become too large; merge trivial tasks that only add setup overhead.
+Specify a dependency graph, then verify that it matches the artifact contracts.
 
-**Rule:** when you can predict the tempting expansion, forbid it by name and say where it belongs instead.
-
-- ✅ "Migrate all 39 existing functions mechanically through the shim — opportunistically un-shimming existing ones is scope creep. Don't. (Prompt 4 writes the first natively typed functions.)"
-
-## 6. Guardrails must be mechanical and unfakeable
-
-**Failure mode:** the agent reports success on work it didn't verify — edits the Containerfile without booting it, claims a perf win without a baseline, ships a flaky test as passing.
-
-**Rule:** exit criteria are commands with pass/fail outcomes, plus explicit anti-rationalization clauses for the known dodges:
-
-- "Run `go test ./... -race -count=1` and make it pass before finishing." (Exact flags — they're a different claim than `go test ./...`.)
-- "STEP 0: save a benchmark baseline before editing anything. No baseline, no perf claim."
-- "You MUST actually boot the resulting container and confirm `/healthz` responds. Editing the Containerfile without booting it does not count as done."
-- "If you cannot make BOTH gates pass, ship with the feature opt-in and report exactly why. Do not rationalize a flaky pass."
-- "If the live path could not be exercised, your summary must state so explicitly — do not report success."
-
-Repo rituals (spec syncing, generated code) are restated in **every** prompt that can trigger them — a fresh session has no memory, and cross-cutting invariants must travel with each prompt.
-
-## 7. Testing sections state the claims to prove, not "add tests"
-
-**Failure mode:** tests that exercise the code but not the claim — a null-handling test that never constructs a null, an equivalence test comparing a thing to itself.
-
-**Rule:** enumerate the specific propositions tests must establish, including the no-regression proof:
-
-- ✅ "Profile of a CSV dataset with int/float hints is numerically identical to the pre-refactor output (golden comparison on an existing fixture — this is the no-regression proof)."
-- ✅ "`NullValue() != StringValue(\"\")` under `Equal`."
-- ✅ "All existing engine tests pass with at most mechanical updates — expectation changes are a red flag; justify each one."
-
-Include the repo's known testing gotchas inline (from the conventions doc) so the agent doesn't waste a session rediscovering them.
-
-## 8. Size sessions to one architectural move
-
-**Failure mode (too big):** quality degrades through the session; the last third is rushed, tests are thin, the summary glosses. **Failure mode (too small):** every session pays full recon cost for a trivial diff.
-
-**Rule:** one coherent move plus its proof per prompt — "create the record package and prove it, wiring nothing" then "rewire the profiler onto it" — not both, not half of one. When a cutover can't be split, mark it as the human checkpoint and mandate plan mode.
-
-## 9. Sequencing is explicit; parallelism is explicit
-
-**Rule:** the header states the DAG in one line ("1→2→3 strictly; 5 and 6 independent of each other; 4 any time after 3") so the human running the series can schedule without re-deriving dependencies. Human checkpoints are flagged where blast radius is largest, with the mitigation named (plan mode + plan review).
-
-## 10. The review loop is part of the format
-
-**Rule:** the header tells the human what to review after each prompt lands — correctness, **test honesty** (do the tests actually exercise the claim?), and scope creep — and to loop fixes back to the same agent until acceptance criteria pass before moving on. The series assumes review between sessions; prompts can therefore afford to trust that prerequisites landed *if their tripwires don't fire*.
-
-## 11. The laziest design that works — the author climbs the ladder
-
-**Failure mode:** over-building. Asked for a date picker, the implementer installs a library, writes a wrapper component, adds a stylesheet, and opens a timezone discussion. Asked for a cache, it writes a 120-line cache class. Asked to group records, it adds lodash. Each is defensible in isolation; together they are the bloat that makes review impossible and the codebase heavier for every prompt after.
-
-**Rule:** every design decision in a prompt stops at the first rung of the [ponytail](https://github.com/DietrichGebert/ponytail) ladder that holds (full ruleset in `ponytail.md`): does it need to exist at all → already in this codebase → stdlib → native platform feature → already-installed dependency → one line → only then the minimum that works. The prompt records the rung and the thing to reuse, so the implementer inherits the decision rather than re-deriving it wrongly.
-
-- ❌ "Add a date picker to the form."
-- ✅ "`<input type=\"date\">` — the browser has one. No picker library, no wrapper component."
-- ❌ "Create a Repository abstraction over the store."
-- ✅ "Call `store.Get` directly from the handler. No repository interface — one implementation exists; the abstraction is scope creep until a second store lands."
-
-Forbid the tempting over-build by name, exactly as you forbid scope creep (Principle 5): "no new dependency — `net/http` covers it"; "no config for this value — it never changes". Where a deliberate simplification has a known ceiling (a global lock, an O(n²) scan), the prompt tells the implementer to mark it `# ponytail: <ceiling>, <upgrade path>` so the deferral is tracked, not forgotten.
-
-**Not lazy about:** understanding the problem, input validation at trust boundaries, error handling that prevents data loss, security, accessibility, anything the thesis explicitly requires. Lazy means less code, not the flimsier algorithm — between two same-size options take the edge-case-correct one. And the Testing section (Principle 7) still names the claims to prove; the ladder shortens the code, never the proof.
-
-## 12. Voice
-
-Write in dense, declarative, second-person-imperative prose. Bold the load-bearing decisions. Parentheticals carry the reasoning ("no boxing in the hot path"). No hedging, no "consider", no "you may want to" — the implementer executes; optionality is the author's to resolve. Use the repo's own vocabulary (from the conventions doc), never synonyms.
+Review for plausible incorrect outcomes, missing dependencies, and unnecessary
+complexity. Blocking findings name a requirement or material risk; preferences are
+nonblocking. Recheck amended tasks and affected dependents, not the whole series by
+ritual. Write direct, concrete instructions with rationale where it changes decisions.
+Avoid personality labels, threats, and claims that a test is unfakeable.

@@ -5,7 +5,7 @@ description: Extract a repository's conventions into a single evidence-anchored 
 
 # repo-conventions: Ground-Truth Extraction
 
-Produce ONE document (`CONVENTIONS.md`, or the path the caller specifies) that states how this repository actually works — with a file anchor for every claim. This document is consumed by other agents who will NOT re-verify it, so a wrong fact here becomes a wrong decision downstream.
+Produce ONE document (`CONVENTIONS.md`, or the path the caller specifies) that states how this repository actually works — with a file anchor for every claim. This document is a snapshot for downstream agents. They must recheck consequential claims when relevant code or environment changes; record enough evidence to make that check inexpensive.
 
 **The one rule that governs everything: no fact without evidence.** Every statement must cite `path/to/file:line` (or a command you actually ran and its output). If you believe something is true but cannot anchor it, either verify it now or leave it out. Never write from memory of "how Go projects usually work" — write from what you read.
 
@@ -23,7 +23,7 @@ Read the `Makefile`, `package.json` scripts, CI workflows (`.github/workflows/`)
 
 ### 2. Hard invariants — rules that must never be violated
 
-Sources: `CLAUDE.md`, `CONTRIBUTING.md`, README, CI checks that enforce something, and load-bearing comments near public interfaces. Record each invariant with:
+Sources: applicable `AGENTS.md`, agent-specific instructions such as `CLAUDE.md`, `CONTRIBUTING.md`, README, CI checks that enforce something, and load-bearing comments near public interfaces. Record each invariant with:
 
 - The rule, stated as a testable sentence.
 - Where it's enforced (a CI diff check? a test? only convention?).
@@ -51,8 +51,8 @@ The repo's own names for things (job vs task, dataset vs source, transform vs ru
 
 ## Method
 
-1. Read the meta-files first: `CLAUDE.md`, README, `Makefile`, CI workflows. These are dense with declared conventions — but treat them as claims to verify, not facts.
-2. Fan out over the code to verify and extend. For a large repo, spawn read-only subagents per subsystem, each returning anchored facts for the six sections. Merge, and discard any returned fact that lacks an anchor.
+1. Read applicable repository instructions first (`AGENTS.md` and relevant agent-specific files), then README, `Makefile`, CI workflows. These are dense with declared conventions — but treat them as claims to verify, not facts.
+2. Inspect code to verify and extend the facts. For a large repo, use bounded read-only subagents when available and useful, following host capabilities and configured model preferences. Otherwise inspect sequentially. Spot-check consequential delegated findings against source, and discard unanchored claims.
 3. Where a declared convention contradicts the code, record BOTH with anchors and flag the discrepancy prominently — this is high-value output, not noise.
 4. Write the document. Facts, not prose: short declarative sentences, each with its anchor. No hedging ("probably", "seems to") — verify or omit.
 
@@ -76,4 +76,4 @@ The repo's own names for things (job vs task, dataset vs source, transform vs ru
 ## Discrepancies found
 ```
 
-Stamp the git SHA at the top — the document is a snapshot, and consumers need to know when it has gone stale.
+Stamp the git SHA and relevant uncommitted changes at the top. Record command environment and whether commands were actually run or only discovered in configuration. Use paths and symbols alongside line anchors. Separate observed behavior from declared policy, and list unresolved assumptions with validation steps; consumers must not interpret them as facts.

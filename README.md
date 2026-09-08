@@ -1,8 +1,8 @@
 # SKILLS
 
-Source-of-truth repository for custom Claude Code skills. The actual skill
-content lives here (version-controlled), and Claude Code loads each skill via a
-**symlink** placed in `~/.claude/skills/`.
+Source-of-truth repository for skills used by Claude Code, Codex, and Cursor.
+Skill content lives here (version-controlled), and each agent loads it through
+**symlinks** in its user skills directory.
 
 > **Attribution:** `taste-skill/` is vendored from
 > [Leonxlnx/taste-skill](https://github.com/Leonxlnx/taste-skill) (MIT — see its
@@ -37,8 +37,8 @@ Read/search **public** X posts, threads, profiles, followers, and following via
 curl-first so Codex, Claude Code, and Cursor work on a PC without Bun.
 
 `make link` covers it (symlink `browse-x` → `browse-x-skill/skills/browse-x`).
-On a PC, also point Cursor/Codex at that same folder — see
-`browse-x-skill/README.md`.
+Use `make link-codex` or `make link-cursor` to link it along with every other
+skill for those agents.
 
 ## forge (`forge/`)
 
@@ -135,10 +135,35 @@ arguments prints the help:
 | `make status` | List every symlink in `~/.claude/skills/` with OK/BROKEN and whether this repo owns it. |
 | `make check`  | Exit non-zero if any skill is unlinked or any repo-owned link is broken/stale. |
 
+Choose an agent with `AGENT=claude|codex|cursor`, or use a suffixed target:
+
+```bash
+make link-codex       # ~/.agents/skills (Codex's documented user directory)
+make link-cursor      # ~/.cursor/skills
+make check-codex
+make status-cursor
+make relink-codex
+make unlink-cursor
+```
+
+All five management commands support `-claude`, `-codex`, and `-cursor`.
+Unsuffixed commands default to Claude Code for compatibility. `TARGET_DIR`
+overrides the destination, for example:
+
+```bash
+make link AGENT=codex TARGET_DIR="$HOME/.codex/skills"
+```
+
+The defaults follow the [Codex skill documentation](https://learn.chatgpt.com/docs/build-skills)
+and [Cursor skill documentation](https://cursor.com/docs/skills). Cursor also
+reads the shared `~/.agents/skills` directory. Restart the agent or IDE after
+linking if the skills do not appear. Linking makes the files available; skills
+that require agent-specific tools still require those tools.
+
 Skills are discovered automatically by finding `SKILL.md` files, so adding a new
 skill is just: create `<project>-skill/skills/<name>/SKILL.md`, then `make link`.
 
-**Safety:** `~/.claude/skills/` also holds symlinks owned by *other* repos (e.g.
+**Safety:** Each destination may also hold symlinks owned by *other* repos (e.g.
 `absorb-x` and `checkin` from `second-brain`, `omarchy` from Omarchy). The
 Makefile inspects each link's target and never creates, replaces, or removes a
 link that doesn't resolve into this repo — those show up as `SKIP` in `make link`

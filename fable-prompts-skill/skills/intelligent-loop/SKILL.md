@@ -1,149 +1,135 @@
 ---
 name: intelligent-loop
-description: >
-  Orchestrate a multi-prompt implementation plan: dispatch each prompt to a
-  cheaper-tier subagent (Sonnet) with fresh context, review the diff as the
-  orchestrator, independently verify, loop fixes back to the same agent, and
-  commit each prompt's work separately on a dedicated branch. Use when the
-  user has a prompt-series file (a plan of standalone implementation prompts)
-  and asks to execute it with the dispatch/review loop.
+description: Execute a reviewed multi-task plan through implementation, diff review, verification, fixes, and local task commits, with durable progress and evidence-based plan amendments. Use when the user asks to run or resume a prompt series. Supports available subagents or sequential execution when delegation is unavailable.
 ---
 
 # Intelligent Loop
 
-You are the ORCHESTRATOR. You never implement prompts yourself; you
-dispatch, review, verify, decide, and commit. See README.md in this
-directory for the full methodology and rationale.
+Own the plan, dispatch, review, verification, recovery, and task commits. Delegate
+implementation when supported and useful. If delegation is unavailable, implement
+sequentially and report self-review honestly; a second test run is not an independent
+reviewer. Use `../fable-prompts/references/ponytail.md` for simplicity decisions. If
+that companion file is unavailable, use the minimum maintainable solution consistent
+with requirements; do not block solely on optional review guidance.
 
-The simplicity ruleset is `../fable-prompts/references/ponytail.md`
-(adapted from https://github.com/DietrichGebert/ponytail). Read it once at
-the start: its compact block goes into every dispatch, and its review tags
-are a mandatory review dimension. The diff's best outcome is getting
-shorter.
+## Input and preflight
 
-## Input
+Read the plan path supplied by the user (or host-provided arguments). Parse task
+headings, dependencies, contracts, acceptance evidence, required checks, and existing
+user checkpoints; do not split mechanically on every Markdown horizontal rule.
 
-`$ARGUMENTS` is the path to a prompts file. Read it fully. Extract:
+Read applicable repository instructions, including AGENTS.md and agent-specific
+files. Inspect HEAD, branch, staged/unstaged changes, and untracked files. Reuse an
+appropriate feature branch or create one from the intended baseline. Preserve user
+work; isolate conflicting work in a worktree when practical. Never reset or clean
+the tree to obtain a convenient baseline.
 
-- the ordered list of prompts (sections between `---` separators)
-- sequencing constraints and any prompts flagged high-risk
-- per-prompt guardrail commands and invariants
+Check required tools and relevant baseline verification before editing. Record
+existing failures and unavailable checks. Investigate missing acceptance criteria
+or commands and repair the plan within the agreed goal where possible; ask only
+when a material decision cannot be inferred or resolved from repository evidence.
+A baseline failure is not permission to waive a required gate.
 
-If any prompt lacks objective acceptance criteria (tests, builds,
-invariants) or a guardrail command, surface that to the user before
-starting — the loop's safety depends on them.
+An execution request authorizes the local implementation/review/fix loop and task
+commits unless the user says otherwise. It does not imply authorization to push,
+merge, publish, or deploy. Honor authorization and review checkpoints already agreed
+with the user; do not ask again merely because this skill is running. If asked only
+to plan, use fable-prompts and stop at the plan.
 
-## Procedure
+## Durable progress
 
-1. **Branch setup.** Create one feature branch named after the plan (ask
-   only if the working tree is dirty with conflicting changes).
-2. **For each prompt, in the declared order:**
-   a. **Dispatch** a `general-purpose` agent with `model: sonnet`. The
-      agent prompt MUST contain:
-      - the repo path and branch; "read CLAUDE.md first"
-      - a context bridge naming what previous prompts landed (packages,
-        helpers, types now available), since the agent's context is fresh
-      - the FULL verbatim prompt text — never a summary
-      - the **compact block** from `ponytail.md`, verbatim — the ladder
-        (YAGNI → reuse → stdlib → native → installed dep → one line →
-        minimum) and the not-lazy list. The prompt's own decisions,
-        Testing, Invariants, and Guardrails outrank the ladder; the block
-        governs everything the prompt left open.
-      - the standing rule: "do NOT commit — leave changes in the working
-        tree; the orchestrator reviews and commits"
-      - a required final-report format: files changed, exact commands run
-        and their results, any deviations from spec
-   b. **Review** on completion, in rough priority order:
-      - `git status` / `git diff --stat` — does the footprint match the
-        declared affected packages? Anything touched that shouldn't be?
-      - Read the substantive diffs in full. Test files too — test honesty
-        ("does this test actually exercise the claim?") is a first-class
-        review dimension.
-      - Trace cross-boundary changes (error types, signatures,
-        serialization formats) through their callers — risks the agent
-        may not see from inside its scope.
-      - Check every invariant listed in the prompt explicitly. Review is
-        checking claims against a list, not vibes.
-      - **Ponytail pass.** Read the diff as a lazy senior dev. One line per
-        finding, `<file>:L<n>: <tag> <what to cut>. <replacement>.` with
-        tags `delete` / `stdlib` / `native` / `yagni` / `shrink`. New
-        dependency, new abstraction with one implementation, new file that
-        could be a function, hand-rolled stdlib, config nobody sets — each
-        is a defect and goes back to the agent as a delete-list, same as a
-        correctness finding. A single smoke test or assert self-check is
-        the minimum, never flag it. `Lean already. Ship.` is the pass.
-   c. **Verify independently.** Re-run every guardrail command in your
-      own shell. Never commit on the agent's word that tests pass.
-   d. **On defects:** SendMessage the SAME agent (its context is intact)
-      with located, specific findings ("`Get` in manager.go now returns X
-      but handler.go:322 expects Y"); re-review after the fix. Max 3
-      rounds, then surface to the user or take over directly. Only spawn
-      a fresh agent if the original's context is exhausted or poisoned.
-   e. **On pass:** commit ONLY this prompt's files (leave unrelated
-      untracked files out) with a message describing the change — not the
-      process. One commit per prompt.
-   f. **Report to the user** in 1–3 sentences: what landed, what the
-      review confirmed, what's running next.
-3. **Blocker rule.** If an agent reports a missing prerequisite, STOP the
-   loop and report — a prior prompt didn't land as believed. Never
-   improvise the prerequisite.
-4. **Finish** with a summary table (commit ↔ prompt), overall
-   verification status, the **`ponytail:` debt ledger** (grep the branch
-   for `ponytail:` markers per `ponytail.md`; one row each with ceiling
-   and upgrade trigger, `no-trigger` flagged), and offer to open a PR.
+For an ordinary run, keep a compact `## Execution record` at the end of the plan:
+plan revision, starting commit and branch, initial user changes, baseline results,
+and a task table with ID, status, accepted commit, verification evidence, deviations,
+and next action. Record amendments with rationale and affected task IDs. Statuses:
+`pending`, `in_progress`, `done`, `blocked`; done means reviewed, required checks
+passed, and committed (or explicitly accepted without a commit at the user's request).
+Record non-automated acceptance evidence and unresolved claims too.
 
-## Parallelism
+If the project already uses Forge, read its ledger schema and use `.forge/STATE.json`
+and `.forge/LEDGER.md` instead of a second execution record. Preserve its schema,
+gates, and harness ownership. Put additional plan revision/baseline/evidence details
+in task notes and journal entries. When invoked by Forge, execute only the assigned
+iteration and return control; do not run the remaining series or operate the harness.
 
-Sequential by default. If the prompts file declares two prompts
-independent, you may dispatch them concurrently — but:
+Before dispatch, persist `in_progress`. After accepting code, record the accepted
+commit and checks. A separate small record commit may follow the task commit; never
+invent a self-referential commit SHA. On resume, reconcile records with Git and actual
+artifacts, inspect unfinished changes, and check relevant prerequisites. Recover a
+commit made before its record update through review and verification. Re-run checks
+when changes, stale evidence, or uncertainty justify it; do not restart completed work.
 
-- parallel agents must use `isolation: worktree` so they don't trip over
-  each other's working tree
-- review and commit must still be serialized
+## Task loop
 
-## Failure-handling rules
+1. **Select and refresh.** Choose a task with satisfied dependencies. Confirm its
+   prerequisite contracts against the current checkout, update stale references,
+   and include accepted amendments. Do not dispatch dependent work on unresolved
+   assumptions.
+2. **Dispatch.** Use the host's available delegation tools and configured model
+   preferences. Choose capability appropriate to uncertainty and consequence; do not
+   hardcode a vendor model or assume cheaper is always adequate. Provide:
+   - repo/worktree path, branch, and applicable instruction files;
+   - full current task text, relevant series constraints, prerequisite contracts,
+     and the context bridge from prior accepted work;
+   - fixed requirements, flexible choices, escalation conditions, and relevant
+     simplicity guidance (the compact block when the companion file is available);
+   - no commit/push; preserve unrelated work; return files changed, exact commands
+     and outcomes, evidence for claims, deviations, and unresolved questions.
+3. **Review actual artifacts.** Inspect staged and unstaged diffs plus new/untracked
+   files belonging to the task. Read substantive code and tests, trace changed
+   contracts through callers, check protected boundaries, and assess test honesty.
+   Explain changed expectations. Classify findings by concrete correctness risks,
+   violated requirements, or material maintenance cost; preferences are nonblocking.
+4. **Verify.** Run required task checks yourself on the reviewed work. For delegated
+   work this independently verifies the implementer's report. Use targeted checks
+   during repair and broader checks when required by repository rules or impact.
+   Distinguish pass, fail, and not exercised. A command failure requires diagnosis,
+   not an assumption of dishonesty; compare environment, revision, and exact command.
+5. **Repair or amend.** Send located findings and acceptance conditions to the same
+   agent using the host's continuation facility. If it cannot resume, give a fresh
+   agent the current diff and findings. After three unsuccessful correction rounds,
+   diagnose whether the cause is the contract, implementation, environment, or task
+   size. Change strategy: split, investigate, revise within scope, select a suitable
+   agent, or take over. If taking over, obtain a separate review when available and
+   warranted, otherwise disclose self-review. Do not repeat an unchanged failing
+   strategy indefinitely. Block only dependent work that cannot proceed; continue
+   independent authorized work when useful.
+6. **Accept and record.** Commit only the reviewed task changes after required gates
+   pass. Stage paths or hunks explicitly and inspect the staged diff; a shared file
+   may include user changes. Reverify if staged content differs materially from the
+   tested state. Leave unrelated work intact. Update durable progress and report
+   briefly what landed, what evidence supports it, and what is next.
 
-- **Tests fail on your re-run but the agent claimed green:** treat as a
-  serious signal — re-review the whole diff with suspicion, not just the
-  failing part.
-- **Scope creep found in the diff:** strip it before committing or have
-  the agent revert it. Never let "bonus" changes ride along unreviewed.
-- **Over-build found in the diff** (a wrapper, a helper the codebase
-  already had, a dependency the stdlib covers): loop the delete-list back
-  to the agent. If the prompt itself mandated the over-build, the prompt
-  is the defect — stop and report to the user rather than shipping it.
-- **Agent argues for the bigger version:** the prompt's author already
-  climbed the ladder. Unless the agent shows the smaller version fails a
-  stated Testing claim or Invariant, the smaller version ships.
-- **High-risk-flagged prompts** get the deepest diff review (trace every
-  caller of anything whose type or behavior changed).
+## Discrepancy recovery
 
-## Hard rules
+An unexpected reference is a finding to investigate, not proof of a failed prior task.
+- **Stale reference:** locate the renamed/moved symbol and confirm equivalent semantics;
+  update the reference and continue.
+- **Missing prerequisite:** inspect producer commits and checkout state. Restore or
+  complete the prerequisite only through scoped review and verification; do not
+  recreate a guessed substitute inside the consumer.
+- **Invalid assumption/design:** gather evidence, propose the smallest amendment that
+  preserves the agreed outcome, and revise affected tasks and acceptance evidence.
 
-- Orchestrator commits; implementers never do.
-- Independent verification before every commit.
-- Dispatch the full verbatim prompt text, never a paraphrase.
-- Unrelated untracked files never ride along in commits.
-- Shortest working diff wins. No commit carries a new dependency, layer,
-  or file the prompt did not name.
-- This skill does NOT author the prompts file. If the user has no plan
-  yet, tell them to plan first — writing a good prompt series is a
-  separate, judgment-heavy activity with a human checkpoint before
-  execution.
+Implementers surface fixed-contract changes to the orchestrator before acting on them.
+The orchestrator resolves routine amendments within existing authorization and records
+why. Ask the user when the resolution changes agreed outcomes or constraints, needs
+new permission, or leaves a consequential choice unresolved. While waiting, work only
+on independent tasks. Every amendment is reviewed before affected tasks are dispatched.
 
-## Composing with other skills
+## Parallel work
 
-- The review step may invoke `/code-review` on the diff for an extra
-  adversarial pass before commit.
-- `/verify` can drive the affected flow end-to-end when a prompt changes
-  runtime behavior.
+Sequential by default. Parallel writers require separate Git worktrees and genuinely
+independent contracts and resources. If isolation is unavailable, stay sequential.
+Serialize review and integration. Recheck the combined result after integration:
+passing checks in isolated worktrees does not prove the merged behavior works.
 
-## When to use (and when not)
+## Completion
 
-Use when the work decomposes into 3+ self-contained, sequenceable tasks,
-each with objective acceptance criteria, in a codebase with a fast,
-trustworthy verification command.
-
-Skip when the task is a single change (just do it directly), when
-acceptance criteria are subjective or exploratory, or when the plan
-itself is uncertain — plan first, loop second.
+Run the plan's final integrated scenario and required final checks, including relevant
+dependency joins. Reconcile every acceptance claim with its evidence. Do not report
+the series complete while required checks or user evaluations remain unfulfilled.
+Report task-to-commit mapping, integrated results, deviations, and anything not
+exercised. Summarize deliberate limitations added or changed by this series, including
+`ponytail:` ceilings and upgrade triggers; do not dump unrelated historical debt.
+Record the final state so another session can resume without this conversation.

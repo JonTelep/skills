@@ -1,62 +1,55 @@
-# Review rubric — the adversarial critic pass
+# Plan review rubric
 
-Stance: you are NOT checking whether the prompt is well-written. You are simulating its failure. For each prompt, ask: **how would a lazy, over-eager, or confused implementing agent fail this prompt while still claiming success?** Every gap you find is a place that will actually happen.
+Read each task without the author's unstated context. Simulate a plausible incorrect
+implementation and ask whether the instructions and evidence would detect it.
 
-Read the prompt cold, the way the implementer will — without the author's context. If you needed the author's intent to understand an instruction, that instruction fails.
+## Outcome and evidence
+- Each material user requirement appears in the acceptance evidence map.
+- Every check proves the associated claim: what could still be false if it passes?
+- Behavioral equivalence is not substituted for structural extensibility, static
+  inspection for runtime success, or a build for user acceptance.
+- Relevant baselines, regression evidence, and unavailable checks are explicit.
+- Final integration exercises the complete outcome, not just isolated task checks.
 
-## Per-prompt checks
+## Grounding and uncertainty
+- Observed references were inspected at the recorded snapshot; consequential anchors
+  are spot-checked against source. Paths and symbols permit navigation after line drift.
+- Assumptions are labeled and assigned validation. Planned artifacts identify their
+  producers and contracts without fabricated line anchors.
+- Consequential uncertainty was investigated or assigned a bounded research task
+  before dependent design. Experiments have stopping conditions and recorded results.
+- Significant design decisions have rationale; alternatives are compared where useful.
 
-### A. Anchors and self-containment
-- [ ] Every file path, function name, line range, and count in the prompt was verified against the codebase during recon. Spot-check the ones the Details lean on hardest.
-- [ ] The prompt references **no other prompt by number** — only artifacts that exist in the codebase by the time it runs.
-- [ ] Artifacts created by *earlier prompts in this series* are referenced with a tripwire framing (missing ⇒ "stop and report"), not assumed silently.
-- [ ] Nothing referenced is created by a *later* prompt (sequencing bug — fatal).
+## Delegation and dependencies
+- Fixed requirements, flexible choices, and escalation conditions are distinguishable.
+- The task includes its prerequisite contracts and relevant series constraints; it
+  does not require another agent's conversation or an unseen prior prompt.
+- Dependency order matches artifact production. Parallel tasks do not silently share
+  edits, changing contracts, generated files, or exclusive test resources.
+- Task scope fits a coherent implementation and review; trivial work is not padded
+  into a series. User checkpoints reflect actual decisions and existing authorization.
 
-### B. Decision completeness
-- [ ] No design decision is delegated to the implementer. Hunt for "appropriately", "as needed", "consider", "either... or" without a decider — each is a fork the agent will take wrongly.
-- [ ] Where a decision legitimately depends on what the code can express, a STEP 0 read-and-report exists WITH an author-chosen fallback scope — not "use your judgment".
-- [ ] Error/edge semantics are stated where they'll be hit (null handling, failure policy, boundary values), not left to emerge.
+## Scope and simplicity
+- Expected edits cover callers, tests, and generated outputs; protected boundaries
+  are explicit without freezing every unlisted file.
+- Reuse candidates were checked for suitability, not selected by name alone.
+- Dependencies and abstractions have concrete benefits. Findings identify unnecessary
+  concepts, coupling, duplication, or maintenance cost rather than merely more lines.
+- Validation, data-loss handling, security, accessibility, and required performance
+  survive simplification. Real deferred limitations have ceilings and upgrade triggers.
 
-### C. Blast radius and invariants
-- [ ] Affected-packages list is exhaustive: trace the Details and confirm no edit implied by them touches an unlisted package.
-- [ ] Invariants state the negative space: untouched packages, byte-identical outputs, preserved properties (streaming, bounded memory, API compatibility).
-- [ ] Predictable scope-creep temptations are prohibited **by name**, with the deferred work's home identified.
+## Recovery and completion
+- Discrepancies go through investigation and classification before blocking the user.
+- Plan amendments preserve agreed outcomes and constraints and refresh dependents.
+- Exact checks and pass criteria are supplied; unverified commands are labeled.
+- Changed expectations require explanation; failures cannot be waived as unrelated
+  without evidence. Completion cannot silently omit a required gate.
+- Instructions use host capabilities rather than unavailable tool/model names.
 
-### D. Verifiability — the anti-fake checks
-- [ ] Every guardrail is a command with a pass/fail outcome, exact flags included. "Make sure it works" is not a guardrail.
-- [ ] Perf claims require a baseline captured BEFORE edits ("no baseline, no perf claim").
-- [ ] Anything that can be edited without being executed (containers, CI YAML, scripts) carries an "editing it does not count as done" clause, or an honest "state explicitly that this was not exercised" fallback when the environment may not allow execution.
-- [ ] Repo rituals (spec sync, codegen) are restated in this prompt if this prompt can trigger them — the header doesn't count; fresh sessions read only their own section.
-- [ ] The stop-and-report clause is present: codebase contradicts the prompt ⇒ report, don't improvise.
+## Finding format and stopping rule
 
-### E. Test honesty
-- [ ] The Testing section states claims to prove, not activities. For each claim, ask: could a test pass without the claim being true? (Equivalence tests comparing a thing to itself; null tests that never construct a null.)
-- [ ] A no-regression proof exists when existing behavior must survive (golden files, byte-identical comparisons on existing fixtures).
-- [ ] "Existing tests pass with at most mechanical updates" is paired with "expectation changes are a red flag — justify each one" wherever fixtures could be quietly edited to make failures disappear.
-- [ ] Repo testing gotchas that this prompt will hit are stated inline.
-
-### F. Sizing
-- [ ] One coherent architectural move plus its proof. If the prompt contains two independent moves, split it. If it's a trivial diff wrapped in ceremony, merge it into a neighbor.
-- [ ] The context budget is plausible: an agent can hold the affected code, make the change, and write honest tests in one session. Cutover prompts that can't be split are flagged as human checkpoints instead.
-
-### G. Over-engineering — the ponytail pass
-Read the prompt's Details as a lazy senior dev (`ponytail.md`). One line per finding, tagged `delete` / `stdlib` / `native` / `yagni` / `shrink`.
-- [ ] Nothing the prompt mandates fails the ladder: no abstraction with one implementation, no new dependency where stdlib/platform/an installed dependency covers it, no layer with one caller, no config for a value that never changes, no file that could be a function.
-- [ ] Each capability names the thing to **reuse** (from the recon reuse inventory). A capability with no reuse target and no "nothing exists — write the minimum" note is a rung the implementer will climb wrongly.
-- [ ] The predictable over-build is forbidden by name, the way scope creep is.
-- [ ] Simplifications with a known ceiling instruct a `ponytail:` marker. Simplifications that would cut validation at a trust boundary, data-loss handling, security, or accessibility are **not** present — those are never on the ladder.
-- [ ] The Testing section survives: the ladder shortened the code, not the proof.
-
-## Series-level checks (once)
-
-- [ ] The thesis is falsifiable and ONE prompt is assigned to write the test that enforces it permanently, named visibly.
-- [ ] The sequencing line matches reality: walk each prompt's references and confirm the declared DAG admits no ordering that breaks an anchor.
-- [ ] The scope guard exists and the deferred work is named with its future home.
-- [ ] The series is the smallest that makes the thesis true: no prompt exists to build something rungs 1–5 of the ladder already cover.
-- [ ] Human checkpoints sit on the largest-blast-radius prompts, with the mitigation stated (plan mode + review).
-- [ ] How-to-use and review-loop boilerplate is present and consistent with the repo's actual commands.
-- [ ] Vocabulary matches the repo's own (per the conventions doc) — no invented synonyms.
-
-## Reporting
-
-For each finding: prompt number, rubric item, the failure it enables (one sentence of the concrete bad outcome), and the fix. Fix all findings, then re-run the rubric on the changed prompts only. A prompt ships when a cold read produces zero findings.
+Record task ID, severity (blocking/nonblocking), violated requirement or concrete
+failure scenario, evidence, and proposed correction. Preferences are nonblocking.
+Fix blocking findings, then review changed tasks and affected dependents. Deliver
+with remaining uncertainty and accepted tradeoffs visible; do not require an endless
+zero-preference-findings loop.

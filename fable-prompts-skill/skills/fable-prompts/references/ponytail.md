@@ -1,119 +1,86 @@
-# Ponytail — the simplicity ruleset
+# Ponytail — simplicity and maintenance
 
-Adapted from [DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail)
-(MIT — notice at the bottom). *He says nothing. He writes one line. It works.*
+Adapted from [DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail).
+The MIT notice is preserved below. This adaptation prioritizes the minimum
+maintainable solution over line count.
 
-The rule is not "fewest tokens". It is: write only what the task needs, and never
-cut validation, error handling, security, or accessibility. Code ends up small
-because it is necessary, not golfed.
+## Reuse ladder
 
-This file is the single source for the ruleset in this collection. `fable-prompts`
-applies it while **deciding** each prompt's design; `intelligent-loop` pastes the
-compact block into every implementer dispatch and applies the review tags to every
-diff before commit.
+Understand the real flow and requirements before choosing an implementation:
 
----
+1. Does the capability need to exist for the agreed outcome?
+2. Does the codebase already provide a suitable helper or pattern?
+3. Does the standard library cover the required semantics?
+4. Does the platform provide the capability?
+5. Does an installed dependency provide a suitable solution?
+6. Otherwise, write the minimum maintainable implementation.
 
-## The ladder
+Choose the first suitable option, not the first superficially similar API. Check
+edge cases, compatibility, and required performance. A concise expression is useful
+when readable; a one-liner is not a goal in itself.
 
-Before writing any code, stop at the first rung that holds:
+## Decision rules
 
-1. **Does this need to exist at all?** Speculative need → skip it, say so in one line. (YAGNI)
-2. **Already in this codebase?** A helper, util, type, or pattern a few files over → reuse it. Re-implementing what already exists is the most common slop.
-3. **Stdlib does it?** Use it.
-4. **Native platform feature covers it?** `<input type="date">` over a picker lib, CSS over JS, DB constraint over app code.
-5. **Already-installed dependency solves it?** Use it. Never add a new one for what a few lines can do.
-6. **Can it be one line?** One line.
-7. **Only then:** the minimum code that works.
+Prefer fewer unnecessary concepts, less coupling, and less duplication. A new file,
+abstraction, or dependency needs a concrete benefit; its mere existence is not a
+defect. Do not add scaffolding for hypothetical requirements. Respect the plan's
+fixed decisions; report contrary evidence through its amendment procedure. Use
+judgment for choices explicitly left flexible.
 
-The ladder runs *after* understanding the problem, not instead of it. Read the code
-the change touches, trace the real flow end to end, then climb. Two rungs work → take
-the higher one. Lazy about the solution, never about the reading.
+For bug fixes, trace relevant callers and fix the root cause. Do not silently expand
+a task beyond its contract to clean up every adjacent issue. Report discoveries and
+agree an amendment when required.
 
-**Bug fix = root cause, not symptom.** Grep every caller of the function you touch and
-fix the shared function once. One guard there is a smaller diff than one per caller,
-and patching only the path the ticket names leaves a sibling caller still broken.
-
-## Rules
-
-- No abstractions that weren't explicitly requested: no interface with one implementation, no factory for one product, no config for a value that never changes.
-- No new dependency if it can be avoided. No boilerplate nobody asked for. No scaffolding "for later".
-- Deletion over addition. Boring over clever. Fewest files possible.
-- Shortest working diff wins, but only once you understand the problem. The smallest change in the wrong place isn't lazy, it's a second bug.
-- Two stdlib options, same size? Take the one correct on edge cases. Lazy means less code, not the flimsier algorithm.
-- Mark deliberate simplifications that cut a real corner with a known ceiling (global lock, O(n²) scan, naive heuristic) with a `ponytail:` comment naming the ceiling and upgrade path: `# ponytail: global lock, per-account locks if throughput matters`.
-
-## Not lazy about
-
-Never simplify away: understanding the problem, input validation at trust boundaries,
-error handling that prevents data loss, security, accessibility, the calibration real
-hardware needs, anything explicitly requested.
-
-Lazy code without its check is unfinished. Non-trivial logic (a branch, a loop, a
-parser, a money/security path) leaves ONE runnable check behind, the smallest thing
-that fails if the logic breaks. Trivial one-liners need no test; YAGNI applies to
-tests too. In this collection the prompt's **Testing** section decides what that check
-is — it overrides "one check" when it names more claims to prove.
+Never simplify away validation at trust boundaries, protection against data loss,
+security, accessibility, or required performance. Tests should prove material claims;
+reuse existing coverage when sufficient. Do not add tests that merely mirror the
+implementation or force new tests for trivial changes.
 
 ## Review tags
 
-Used by the adversarial review in `fable-prompts` (on the prompt's design) and by the
-orchestrator in `intelligent-loop` (on the implementer's diff). One line per finding:
+Locate each finding and explain its concrete cost and proposed improvement:
 
-`<file>:L<line>: <tag> <what to cut>. <replacement>.`
+- `delete`: unused or speculative behavior.
+- `reuse`: suitable existing behavior duplicated by the change.
+- `stdlib` / `native`: custom machinery replaceable without losing required semantics.
+- `yagni`: complexity whose benefit depends on a hypothetical requirement.
+- `simplify`: fewer concepts or clearer flow with the same required behavior.
 
-- `delete:` dead code, unused flexibility, speculative feature. Replacement: nothing.
-- `stdlib:` hand-rolled thing the standard library ships. Name the function.
-- `native:` dependency or code doing what the platform already does. Name the feature.
-- `yagni:` abstraction with one implementation, config nobody sets, layer with one caller.
-- `shrink:` same logic, fewer lines. Show the shorter form.
+Block on violated requirements or material maintenance costs. Label preferences
+nonblocking. Do not require a negative line-count target or repeat reviews just to
+find something else to shorten. Correctness and acceptance checks remain necessary
+when the simplicity pass has no findings.
 
-End with `net: -<N> lines possible.` Nothing to cut: `Lean already. Ship.`
+## Deliberate limitations
 
-A single smoke test or assert-based self-check is the minimum, not bloat — never flag
-it for deletion. Correctness, security, and performance are a separate review pass.
+Mark a real deferred limitation with a `ponytail:` comment naming the ceiling and
+an observable upgrade trigger. Example:
 
-## The `ponytail:` debt ledger
-
-Every deliberate shortcut carries a `ponytail:` comment. Harvest them so a deferral
-can't quietly become permanent:
-
-```sh
-grep -rnE '(#|//|--) ?ponytail:' . --exclude-dir={node_modules,.git,dist,build,vendor}
+```text
+// ponytail: serial account updates; use per-account locks if measured lock wait
+// exceeds the service latency budget under expected concurrent load.
 ```
 
-One row per marker: `<file>:<line> — <what was simplified>. ceiling: <limit>. upgrade: <trigger>.`
-Tag any marker with no upgrade trigger as `no-trigger`; those rot silently.
+At completion, summarize markers added or materially changed by the series, using
+tracked changed files and excluding generated/vendor content. Report ceiling and
+upgrade trigger; flag missing triggers. Do not turn this into an inventory of all
+historical debt. Ordinary design decisions do not need markers.
 
----
+## Compact block for implementer dispatch
 
-## Compact block (paste verbatim into implementer prompts)
-
-```
-SIMPLICITY RULES (ponytail — https://github.com/DietrichGebert/ponytail)
-You are a lazy senior developer. Lazy means efficient, not careless. The best code
-is the code never written. Before writing any code, stop at the first rung that holds:
-1. Does this need to be built at all? (YAGNI)
-2. Does it already exist in this codebase? Reuse the helper, util, or pattern that's
-   already here — the prompt's Details name the ones recon found.
-3. Does the standard library already do this? Use it.
-4. Does a native platform feature cover it? Use it.
-5. Does an already-installed dependency solve it? Use it.
-6. Can this be one line? Make it one line.
-7. Only then: write the minimum code that works.
-The ladder runs after you understand the problem: read the code the change touches
-and trace the real flow first. Bug fix = root cause: grep every caller, fix the shared
-function once.
-Rules: no abstractions that weren't requested; no new dependency; no boilerplate;
-deletion over addition; boring over clever; fewest files; shortest working diff.
-Between two same-size stdlib options pick the edge-case-correct one. Mark deliberate
-simplifications with a known ceiling using a `ponytail:` comment naming the ceiling
-and upgrade path.
-Not lazy about: understanding the problem, input validation at trust boundaries,
-error handling that prevents data loss, security, accessibility, anything the prompt
-explicitly requires (its Testing, Invariants, and Guardrails sections are law and
-override "one check"). Where the prompt makes a design decision, that decision wins
-over the ladder — the author already climbed it.
+```text
+SIMPLICITY AND MAINTENANCE
+Understand the affected flow first. Check whether the capability is needed, then
+look for suitable repo helpers, stdlib, platform features, and installed dependencies
+before writing new code. Prefer the minimum maintainable solution: fewer unnecessary
+concepts, less coupling, and less duplication. Line count alone is not a quality gate.
+New files, abstractions, and dependencies need concrete benefits consistent with the
+plan's constraints. Preserve required behavior, validation, data-loss protection,
+security, accessibility, and performance. Prove material claims with appropriate
+checks; do not add tests solely to mirror implementation. Honor fixed decisions and
+use judgment within flexible choices. If evidence invalidates a fixed decision,
+report it with a proposed amendment before changing the contract. Mark real deferred
+limitations with a ponytail: ceiling and observable upgrade trigger.
 ```
 
 ---

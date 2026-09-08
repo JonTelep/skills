@@ -1,60 +1,101 @@
-# fable-prompts-skill
+# Planning and implementation skills
 
-Skills for turning a general improvement goal into a **FABLE-PROMPTS-style series**: self-contained, evidence-anchored implementation prompts designed to be handed one at a time to an unsupervised implementing agent (e.g. Sonnet), with each result reviewed before the next prompt runs.
+`repo-conventions` gathers repository evidence. `fable-prompts` turns a goal into a
+reviewable plan. `intelligent-loop` executes that plan through implementation, review,
+verification, fixes, and local commits. They work with the host's available tools and
+model preferences rather than requiring a particular vendor or agent API.
 
-The format originated in the `easy-data-quality` repo's `docs/prompts/FABLE-PROMPTS*.md` series. Its core idea: the prompt author (a strong model, with full codebase context) makes every architectural decision and encodes distrust of the implementer — tripwires for broken prerequisites, named scope-creep prohibitions, mechanical unfakeable guardrails, and tests that prove claims rather than exercise code.
+## What the plan contains
 
-## Skills
+- Observable outcomes and an acceptance evidence map.
+- Inspected code references, explicit assumptions, and future artifact contracts.
+- Bounded investigation of consequential unknowns and rationale for design choices.
+- Task dependencies, fixed requirements, flexible implementation choices, and escalation
+  conditions.
+- Relevant baseline checks, per-task verification, and final integrated acceptance.
 
-| Skill | Purpose |
-|---|---|
-| `skills/repo-conventions` | Extract a repo's ground truth (commands, invariants, boundaries, testing gotchas, seams, vocabulary) into one evidence-anchored facts document. Standalone — also useful for onboarding docs and CLAUDE.md authoring. |
-| `skills/fable-prompts` | The author: Sharpen (goal → falsifiable thesis + scope guard) → Recon (invokes `repo-conventions`, fans out anchor-gathering subagents) → Decompose & Write (session DAG, prompts rendered against the template) → Adversarial Review (critic pass per prompt against the rubric). |
-| `skills/intelligent-loop` | The executor: takes a prompt-series file and runs the dispatch/review loop — each prompt implemented by a fresh cheaper-tier subagent, the orchestrator reviews the diff, independently re-runs guardrails, loops fixes back to the same agent, and commits one reviewed commit per prompt. |
-
-Together they close the loop: `repo-conventions` grounds it, `fable-prompts` writes the plan (with a human checkpoint), `intelligent-loop` executes it.
-
-## Simplicity: the ponytail rule
-
-Both skills carry the philosophy of [DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail) — *he says nothing, he writes one line, it works.* Before any code, stop at the first rung that holds:
-
-```
-1. Does this need to exist?   → no: skip it (YAGNI)
-2. Already in this codebase?  → reuse it, don't rewrite
-3. Stdlib does it?            → use it
-4. Native platform feature?   → use it
-5. Installed dependency?      → use it
-6. One line?                  → one line
-7. Only then: the minimum that works
-```
-
-Lazy, not negligent: validation at trust boundaries, data-loss handling, security, accessibility, and anything the prompt explicitly requires are never on the chopping block.
-
-The ruleset is vendored once, in `skills/fable-prompts/references/ponytail.md` (MIT, attribution inside), and used at every stage: `fable-prompts` climbs the ladder while making each design decision and forbids the predictable over-build by name; its review rubric has a ponytail pass; `intelligent-loop` pastes the compact block into every implementer dispatch, runs the `delete`/`stdlib`/`native`/`yagni`/`shrink` review on every diff before commit, and harvests the `ponytail:` debt ledger at the end.
-
-`skills/fable-prompts/references/` holds the deep knowledge, kept out of the entrypoint so it stays lean:
-
-- `principles.md` — the design rules, each stated with the implementer failure mode it compensates for, plus good/bad contrasting examples.
-- `template.md` — series-header and per-prompt anatomy, with an annotated real example.
-- `review-rubric.md` — the adversarial checklist (anchor verification, decision completeness, blast radius, unfakeable guardrails, test honesty, sizing, over-engineering).
-- `ponytail.md` — the simplicity ruleset: the ladder, the not-lazy list, the review tags, the `ponytail:` marker convention, and the compact block that `intelligent-loop` pastes into implementer prompts.
+The loop investigates discrepancies and amends the plan within the agreed scope.
+It asks for user judgment when an unresolved decision changes agreed outcomes or
+constraints, or needs new authorization. Progress is recorded in the plan, or in an
+existing Forge ledger, so the work can resume in another session.
 
 ## Install
 
-Symlink the skill directories into your Claude Code skills path:
+From the parent SKILLS repository root:
 
-```sh
-ln -s "$(pwd)/skills/repo-conventions" ~/.claude/skills/repo-conventions
-ln -s "$(pwd)/skills/fable-prompts"    ~/.claude/skills/fable-prompts
-ln -s "$(pwd)/skills/intelligent-loop" ~/.claude/skills/intelligent-loop
+```bash
+make link-codex
+make link-cursor
+make link          # Claude Code
 ```
 
-(Or per-project under `<repo>/.claude/skills/`.)
+The symlinks load the source files directly; edits here need no copy/sync step.
+Start a fresh agent session if an existing session retains older skill instructions.
 
 ## Use
 
-```
-/fable-prompts Phase 3: new sources — S3/Parquet, Excel, deeper Postgres
+Open the **project you want to change**, not this skills repository. These examples
+are messages to the agent, not shell commands. Naming a skill in plain language also
+works when the host does not expose the same skill picker or command syntax.
+
+### 1. Write a plan
+
+```text
+Use fable-prompts to plan: [describe the outcome I want].
+Constraints: [compatibility, scope, performance, or other requirements].
+Inspect this repository and resolve consequential unknowns before prescribing the
+implementation. Compare approaches where the tradeoff matters. Write the plan to
+docs/prompts/MY-PLAN.md with acceptance evidence, dependencies, fixed versus flexible
+decisions, and final integration checks. Do not implement yet. Surface decisions
+that need my judgment.
 ```
 
-The skill will sharpen the goal (asking at most one clarifying question if genuinely ambiguous), run recon, and write `docs/prompts/<SERIES-NAME>.md` in the target repo, following the repo's existing series naming.
+Review the goal, consequential choices, excluded work, and acceptance evidence.
+Reply with corrections; ask the agent to update affected tasks and dependencies.
+You do not need to decide every helper name or local file split.
+
+### 2. Execute the reviewed plan
+
+```text
+Use intelligent-loop to execute docs/prompts/MY-PLAN.md.
+Use available subagents when useful. Continue through implementation, review, fixes,
+verification, and local task commits. Resolve routine choices autonomously and record
+plan amendments that preserve the agreed outcome and constraints. Keep durable
+progress. Ask me only for unresolved consequential decisions or required permissions.
+Do not push or deploy. Finish by checking the integrated outcome and reporting
+anything not exercised.
+```
+
+This starts the loop in the current agent session. It is not a background scheduler;
+if the session stops, use the resume request below. For existing Forge-managed work,
+the loop respects the ledger and returns control to Forge for each assigned iteration.
+
+### 3. Resume or inspect
+
+```text
+Use intelligent-loop to resume docs/prompts/MY-PLAN.md. Reconcile the execution record
+with Git and unfinished changes, then continue from the first ready unfinished task.
+Preserve unrelated work and do not repeat completed work without a verification reason.
+```
+
+For a read-only update:
+
+```text
+Read docs/prompts/MY-PLAN.md and its execution record (or the Forge ledger). Report
+accepted work, remaining tasks, blockers, and missing evidence. Do not modify anything.
+```
+
+You can authorize planning and execution together when the outcome is clear. Say so
+explicitly; the skills do not force another approval between phases. For uncertain
+work, the separate plan review gives you a useful decision point.
+
+## Simplicity and references
+
+The shared simplicity rules are adapted from
+[DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail), with the MIT notice
+preserved in `skills/fable-prompts/references/ponytail.md`. Prefer existing capabilities
+and the minimum maintainable solution. Evaluate coupling, duplication, and operational
+burden rather than rewarding fewer lines at any cost.
+
+Planning details live in `principles.md`, `template.md`, and `review-rubric.md` under
+that references directory. Each skill's `SKILL.md` is its procedural source of truth.

@@ -39,16 +39,13 @@ ln -s "$SKILL" ~/.claude/skills/browse-x
 ### Cursor
 
 ```bash
-mkdir -p ~/.cursor/skills
-ln -s "$SKILL" ~/.cursor/skills/browse-x
+make link-cursor  # all repo skills
 ```
 
 ### Codex
 
 ```bash
-mkdir -p ~/.agents/skills ~/.codex/skills
-ln -s "$SKILL" ~/.agents/skills/browse-x
-ln -s "$SKILL" ~/.codex/skills/browse-x   # still scanned; optional
+make link-codex   # all repo skills, into ~/.agents/skills
 ```
 
 ### skills CLI
