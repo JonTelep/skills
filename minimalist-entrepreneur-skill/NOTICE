@@ -1,0 +1,19 @@
+Minimalist Entrepreneur skills — attribution
+
+These skill files are copied from:
+
+  https://github.com/slavingia/skills
+  commit eb9f57fba03ddb0382ed3bfe6654d3d7df128c70
+
+  skills/first-customers/SKILL.md
+  skills/pricing/SKILL.md
+  skills/minimalist-review/SKILL.md
+
+Author: Sahil Lavingia
+Based on: The Minimalist Entrepreneur (https://www.minimalistentrepreneur.com/)
+
+As of that commit, the upstream repository does not include a LICENSE file
+and GitHub reports no SPDX license. This package vendors only the three
+skills listed above, not the full 10-skill pack.
+
+SKILL.md files are unchanged from upstream.

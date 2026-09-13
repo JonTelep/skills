@@ -11,7 +11,11 @@ Skill content lives here (version-controlled), and each agent loads it through
 > from [DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail)
 > (MIT — notice inside the file). `browse-x-skill/` is adapted from
 > [pc-style/x-md](https://github.com/pc-style/x-md) `skills/browse-x` (MIT — see
-> `browse-x-skill/LICENSE`). Everything else in this repo is original.
+> `browse-x-skill/LICENSE`). `minimalist-entrepreneur-skill/` vendors three
+> skills from [slavingia/skills](https://github.com/slavingia/skills) by Sahil
+> Lavingia / *The Minimalist Entrepreneur* (upstream has no LICENSE file —
+> see `minimalist-entrepreneur-skill/NOTICE`). Everything else in this repo
+> is original.
 
 ## How it works
 
@@ -39,6 +43,23 @@ curl-first so Codex, Claude Code, and Cursor work on a PC without Bun.
 `make link` covers it (symlink `browse-x` → `browse-x-skill/skills/browse-x`).
 Use `make link-codex` or `make link-cursor` to link it along with every other
 skill for those agents.
+
+## Minimalist Entrepreneur sales trio (`minimalist-entrepreneur-skill/`)
+
+Three of ten skills from Sahil Lavingia’s
+[The Minimalist Entrepreneur](https://www.minimalistentrepreneur.com/)
+playbook ([slavingia/skills](https://github.com/slavingia/skills)):
+
+| Skill | Purpose |
+| --- | --- |
+| `first-customers` | Sell to the first 100 customers, one by one |
+| `pricing` | Charge something; set cost- or value-based prices |
+| `minimalist-review` | Gut-check a business decision through a minimalist lens |
+
+`SKILL.md` files are preserved verbatim. This is a selected subset, not the
+full pack. See `minimalist-entrepreneur-skill/README.md`.
+
+`make link` covers all three (`first-customers`, `pricing`, `minimalist-review`).
 
 ## forge (`forge/`)
 
