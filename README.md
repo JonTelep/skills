@@ -40,6 +40,18 @@ curl-first so Codex, Claude Code, and Cursor work on a PC without Bun.
 Use `make link-codex` or `make link-cursor` to link it along with every other
 skill for those agents.
 
+## muse-connector (`muse-connector-skill/`)
+
+Build a paste-ready **Meta Muse "Submit a connector"** packet from the repo you
+invoke it in. `scripts/scan.sh` mines the repo for every field of the
+three-step form at [muse.ai/platform](https://muse.ai/platform) (identity,
+example prompts, 512×512 icon, legal URLs, Raw API vs Existing MCP, endpoint,
+OpenAPI, auth methods, access requirements) and the skill writes
+`docs/muse-connector/SUBMISSION.md` with evidence anchors and a gap list. The
+form's exact fields are recorded in
+`muse-connector-skill/skills/muse-connector/references/form-fields.md`. Never
+submits the form.
+
 ## forge (`forge/`)
 
 Ledger-driven, gate-checked autonomous progression of a project toward
