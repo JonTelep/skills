@@ -52,6 +52,24 @@ form's exact fields are recorded in
 `muse-connector-skill/skills/muse-connector/references/form-fields.md`. Never
 submits the form.
 
+## launch-checklist (`launch-checklist-skill/`)
+
+Audits the current website repo against a 37-point pre-launch checklist.
+**Site polish (1-20):** privacy/terms, secrets, HTTPS, cookie consent, meta +
+social tags, favicon, sitemap/robots, alt text, image weight, page speed,
+contrast, mobile, 404, broken links, form validation, spam protection,
+analytics, single CTA. **App security (21-37):** authentication, server-side
+permission checks, frontend-supplied user IDs, user data isolation, admin
+routes, database lockdown, Firebase/Supabase/storage rules, debug mode, error
+detail, server-side validation, content sanitization, file uploads, SQL/NoSQL
+injection, login/signup rate limits, secrets in git history, security headers
++ CORS, and an untrusted-user test. It first works out which security items
+apply (backend? accounts? datastore? user content? uploads? admin?) and
+collapses the rest into a single N/A row, so a static site isn't buried in
+noise. Reports PASS/FAIL/N-A with evidence, then fixes what you approve.
+`/launch-checklist` audits; `/launch-checklist fix` also applies the
+mechanical fixes. `make link` covers it.
+
 ## forge (`forge/`)
 
 Ledger-driven, gate-checked autonomous progression of a project toward
