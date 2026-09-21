@@ -5,11 +5,28 @@
 # usage: forge.sh <project-dir> [--once]
 #
 # telegram commands (any time, answered by a background listener):
-#   status        state, tasks done/total, recent commits, last ledger entry
-#   run|go|resume start iterating (from idle) or retry now (while parked)
-#   stop|pause    finish the current task, then idle (harness stays alive)
-#   quit          exit the harness
-#   <anything>    saved to .forge/DIRECTION.md (approve gate / new direction) and runs
+#   status|s      state, tasks done/total, recent commits, last ledger entry
+#   help|?        command list (must match forge/README.md table)
+#   run|go|resume|continue|start
+#                 start iterating (from idle) or retry now (while parked)
+#   stop|pause|halt
+#                 finish the current task, then idle (harness stays alive)
+#   quit|exit|kill
+#                 exit the harness
+#   dir …|dir:…|direction …|direction:…
+#                 strip prefix → .forge/DIRECTION.md and run
+#   approve|approve <id>
+#                 gate approval → .forge/DIRECTION.md and run
+#   <anything else>
+#                 ignored — chatter is not direction
+#
+# env:
+#   FORGE_MODEL              default opus
+#   FORGE_PERMISSION_MODE    default bypassPermissions (overnight; never-list
+#                            in SKILL.md / README is the actual safety)
+#   FORGE_MAX_ITERATIONS     default 8 — count PROGRESS+MILESTONE this process,
+#                            then idle; `run` starts another batch
+#   FORGE_LIMIT_RETRY_MIN    default 30
 set -uo pipefail
 
 PROJECT_DIR="$(cd "${1:?usage: forge.sh <project-dir> [--once]}" && pwd)"
@@ -25,8 +42,13 @@ OFFSET_FILE="${HOME}/.forge/telegram.offset"
 MODEL="${FORGE_MODEL:-opus}"
 PERMISSION_MODE="${FORGE_PERMISSION_MODE:-bypassPermissions}"
 LIMIT_RETRY_MIN="${FORGE_LIMIT_RETRY_MIN:-30}"   # fallback when reset time unparseable
+MAX_ITERATIONS="${FORGE_MAX_ITERATIONS:-8}"      # PROGRESS+MILESTONE this process
 POLL_SEC=25                                       # telegram long-poll timeout
 MAX_CONSEC_FAIL=3
+TG_HELP="commands: status/s · help/? · run/go/resume/continue/start · stop/pause/halt · quit/exit/kill
+direction: dir … / dir: … / direction … / direction: …  (only these write DIRECTION.md)
+approve / approve G1  (gate approval)
+anything else is ignored — chatter is not direction"
 
 [ -f "$CONFIG" ] && . "$CONFIG"   # TELEGRAM_TOKEN, TELEGRAM_CHAT_ID
 mkdir -p "$FORGE_DIR" "$INBOX"
@@ -84,7 +106,7 @@ task_done_text() {  # one-liner after a PROGRESS/MILESTONE exit
 
 # ---- telegram listener (background) ---------------------------------------
 listener() {
-  local offset resp next text line
+  local offset resp next text line remainder
   while :; do
     offset="$(cat "$OFFSET_FILE" 2>/dev/null || echo 0)"
     resp="$(curl -sf --max-time $((POLL_SEC + 10)) \
@@ -98,15 +120,27 @@ listener() {
     while IFS= read -r line; do
       [ -n "$line" ] || continue
       log "telegram: $line"
-      case "$(tr '[:upper:]' '[:lower:]' <<<"$line" | sed -E 's/^ +| +$//g')" in
+      case "$(tr '[:upper:]' '[:lower:]' <<<"$line" | sed -E 's/^[[:space:]]+|[[:space:]]+$//g')" in
         status|s)        tg_send "$(status_text)" ;;
-        help|\?)         tg_send "commands: status · run · stop · quit · <free text = direction>" ;;
+        help|\?)         tg_send "$TG_HELP" ;;
         stop|pause|halt) touch "$INBOX/STOP"; tg_send "will pause after the current task ($(cat "$STATE_FILE"))" ;;
         quit|exit|kill)  touch "$INBOX/QUIT"; tg_send "quitting after the current task" ;;
         run|go|resume|continue|start)
                          touch "$INBOX/RUN"; tg_send "run requested ($(cat "$STATE_FILE"))" ;;
-        *)               printf '%s\n' "$line" >> "$FORGE_DIR/DIRECTION.md"; touch "$INBOX/RUN"
-                         tg_send "got it — will act on: \"$line\"" ;;
+        approve|approve\ *)
+                         printf '%s\n' "$line" >> "$FORGE_DIR/DIRECTION.md"; touch "$INBOX/RUN"
+                         tg_send "approval recorded — will act on: \"$line\"" ;;
+        dir\ *|dir:*|direction\ *|direction:*)
+                         remainder="$(sed -E 's/^[[:space:]]*(direction|dir)[[:space:]]*:?[[:space:]]*//I' <<<"$line")"
+                         remainder="$(sed -E 's/^[[:space:]]+|[[:space:]]+$//g' <<<"$remainder")"
+                         if [ -z "$remainder" ]; then
+                           tg_send "ignored — empty direction. use: dir …, approve G1, or a command"
+                         else
+                           printf '%s\n' "$remainder" >> "$FORGE_DIR/DIRECTION.md"; touch "$INBOX/RUN"
+                           tg_send "direction recorded — will act on: \"$remainder\""
+                         fi ;;
+        *)
+                         tg_send "ignored (not a command or direction). use: dir …, approve G1, or a command (status/run/stop/quit)" ;;
       esac
     done <<<"$text"
   done
@@ -156,8 +190,9 @@ run_iteration() {
 
 # ---- main loop ------------------------------------------------------------
 consec_fail=0
+iter_count=0      # PROGRESS+MILESTONE this process; reset on idle→run
 mode=run          # run | idle
-log "=== forge harness up: $PROJECT (model=$MODEL, mode=$PERMISSION_MODE) ==="
+log "=== forge harness up: $PROJECT (model=$MODEL, mode=$PERMISSION_MODE, max_iter=$MAX_ITERATIONS) ==="
 set_state "starting"
 tg_send "forge harness started — send 'status' anytime, 'help' for commands"
 
@@ -166,7 +201,7 @@ while :; do
   if [ -e "$INBOX/STOP" ]; then rm -f "$INBOX/STOP" "$INBOX/RUN"; mode=idle; set_state "idle (paused) — send 'run' to continue"; tg_send "paused. send 'run' to continue"; fi
   if [ "$mode" = idle ]; then
     wait_for_flag -1
-    [ -e "$INBOX/RUN" ] && { rm -f "$INBOX/RUN"; mode=run; log "run requested"; }
+    [ -e "$INBOX/RUN" ] && { rm -f "$INBOX/RUN"; mode=run; iter_count=0; log "run requested (batch counter reset)"; }
     continue
   fi
   rm -f "$INBOX/RUN"
@@ -179,9 +214,12 @@ while :; do
 
   case "$status" in
     PROGRESS)
-      consec_fail=0; tg_send "$(task_done_text)" ;;
+      consec_fail=0
+      iter_count=$((iter_count + 1))
+      tg_send "$(task_done_text)" ;;
     MILESTONE)
       consec_fail=0
+      iter_count=$((iter_count + 1))
       tg_send "$(task_done_text)"
       tg_send "🏁 milestone reached — PR: $(cd "$PROJECT_DIR" && gh pr view --json url -q .url 2>/dev/null || echo 'see github')" ;;
     BARRIER|BLOCKED)
@@ -210,6 +248,13 @@ send 'run' to retry or 'quit'."
     *)
       log "unknown exit '$status' — treating as failure"; sleep 60 ;;
   esac
+
+  if [ "$mode" = run ] && [ "$iter_count" -ge "$MAX_ITERATIONS" ]; then
+    mode=idle
+    set_state "idle (batch cap $MAX_ITERATIONS) — send 'run' for another batch"
+    log "batch cap hit ($iter_count/$MAX_ITERATIONS PROGRESS+MILESTONE)"
+    tg_send "batch cap hit ($MAX_ITERATIONS PROGRESS/MILESTONE exits). send 'run' to start another batch."
+  fi
 
   [ "$ONCE" = "--once" ] && { log "--once: stopping"; break; }
 done
